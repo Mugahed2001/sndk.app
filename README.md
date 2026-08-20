@@ -1,13 +1,13 @@
-# sanak.codey — صفحة المرفق على الويب
+# codey.sytes.net — صفحة المرفق على الويب
 
 موقع ساكن (HTML/CSS/JS بلا بناء) يعرض صفحة مرفقٍ حقيقية من نفس قاعدة بيانات
-تطبيق sanak.codey: معلوماته، أطبّاءه، جدولاته، ويتيح الحجز والدخول عبر نفس دوال
+تطبيق codey.sytes.net: معلوماته، أطبّاءه، جدولاته، ويتيح الحجز والدخول عبر نفس دوال
 الحافة (Supabase Edge Functions) التي يستعملها التطبيق — لا نسخة بيانات ثانية.
 
 ## الروابط
 
-- `https://sanak.codey/facility/<uuid>` — صفحة مرفق (الرابط الذي يُشارَك من التطبيق).
-- `https://sanak.codey/` — صفحة رئيسية بسيطة لفتح رابط مرفق يدوياً.
+- `https://codey.sytes.net/facility/<uuid>` — صفحة مرفق (الرابط الذي يُشارَك من التطبيق).
+- `https://codey.sytes.net/` — صفحة رئيسية بسيطة لفتح رابط مرفق يدوياً.
 
 ## كيف يعمل التوجيه على GitHub Pages
 
@@ -43,7 +43,7 @@ js/facility.js         منطق صفحة المرفق وربطها بكل ما �
 
 1. `Settings → Pages → Build and deployment → Source: Deploy from a branch`،
    واختر الفرع `main` والمجلّد `/ (root)`.
-2. `CNAME` موجود بالفعل بقيمة `sanak.codey` — أضف سجلّ `CNAME`/`ALIAS` في DNS
-   يشير `sanak.codey` إلى `<اسم-المستخدم>.github.io`، أو سجلّات `A` الأربعة
+2. `CNAME` موجود بالفعل بقيمة `codey.sytes.net` — أضف سجلّ `CNAME`/`ALIAS` في DNS
+   يشير `codey.sytes.net` إلى `<اسم-المستخدم>.github.io`، أو سجلّات `A` الأربعة
    الموثّقة في GitHub Pages إن كان نطاقاً جذرياً.
 3. فعّل «Enforce HTTPS» بعد أن يصدر الشهادة (قد يستغرق دقائق بعد أول نشر).
