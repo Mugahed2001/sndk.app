@@ -16,6 +16,13 @@ function esc(s) {
 
 function cleanPhone(p) { return (p || '').replace(/\s+/g, ''); }
 
+// نظير الدالة نفسها في 404.html وindex.html — القاعدة تختلف بين نطاقٍ
+// مخصّص (جذر) وصفحات GitHub الافتراضية (تحت اسم الريبو `/sndk.app/`).
+function sndkBasePath() {
+  const p = window.location.pathname;
+  return (p.indexOf('/sndk.app/') === 0 || p === '/sndk.app') ? '/sndk.app' : '';
+}
+
 async function main() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get('id');
@@ -23,7 +30,7 @@ async function main() {
   if (params.get('pretty') === '1' && id) {
     // يُعيد شريط العنوان إلى شكله الجميل بعد أن قرأنا المعرّف من الاستعلام —
     // انظر تعليق 404.html.
-    window.history.replaceState(null, '', `/facility/${id}`);
+    window.history.replaceState(null, '', `${sndkBasePath()}/facility/${id}`);
   }
 
   if (!id) {
@@ -251,7 +258,7 @@ function wireInteractions(facility, schedules) {
   });
 
   document.getElementById('shareBtn')?.addEventListener('click', () => {
-    const url = `${window.location.origin}/facility/${facility.id}`;
+    const url = `${window.location.origin}${sndkBasePath()}/facility/${facility.id}`;
     if (navigator.share) {
       navigator.share({ title: facility.name, url }).catch(() => {});
     } else {
