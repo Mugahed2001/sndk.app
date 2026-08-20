@@ -341,7 +341,7 @@ const SndkBooking = (() => {
         <svg width="56" height="56" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#56AB2F" stroke-width="2"/><path d="M8 12l3 3 5-6" stroke="#56AB2F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <div class="title-md mt-12" style="color:var(--text);">تمّ الحجز بنجاح</div>
         ${token ? `<p class="text-muted mt-8">رقم دورك: <strong>${token}</strong></p>` : ''}
-        <p class="text-muted mt-8">يمكنك متابعة حجوزاتك من تطبيق codeyemen.sytes.net.</p>
+        <p class="text-muted mt-8">يمكنك متابعة حجوزاتك من تطبيق سندك الطبي.</p>
         <button class="btn btn-filled btn-block mt-16" onclick="SndkBookingClose()">تم</button>
       </div>
     `);

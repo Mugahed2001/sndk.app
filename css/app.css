@@ -80,11 +80,12 @@ button { font-family: inherit; }
   font-size: 16px;
   color: var(--primary);
 }
-.brand-dot {
-  width: 10px;
-  height: 10px;
+.brand-logo {
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary-brand), var(--secondary-teal));
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
 .topbar-actions { margin-inline-start: auto; display: flex; gap: 8px; }

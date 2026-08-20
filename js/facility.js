@@ -63,7 +63,7 @@ async function main() {
     return;
   }
 
-  document.title = `${facility.name} — SND Health`;
+  document.title = `${facility.name} — سندك الطبي`;
   render(facility, schedules);
 }
 
@@ -128,7 +128,7 @@ function render(facility, schedules) {
       <div class="tab-panel" id="panel-doctors">${renderDoctorsTab(doctors)}</div>
       <div class="tab-panel" id="panel-schedules">${renderSchedulesTab(schedules)}</div>
     </div>
-    <footer class="site-footer">© SND Health — codeyemen.sytes.net</footer>
+    <footer class="site-footer">© سندك الطبي — codeyemen.sytes.net</footer>
   `;
 
   wireInteractions(facility, schedules);
