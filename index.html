@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/app.css">
+<link rel="stylesheet" href="css/app.css">
 </head>
 <body>
   <div class="container" style="max-width:520px; padding-top:64px; text-align:center;">
@@ -58,6 +58,12 @@
       if (/^[a-zA-Z0-9-]{8,}$/.test(trimmed)) return trimmed;
       return null;
     }
+    function sndkBasePath() {
+      // نظير الدالة نفسها في js/facility.js و404.html — القاعدة تختلف بين
+      // نطاقٍ مخصّص (جذر) وصفحات GitHub الافتراضية (تحت اسم الريبو).
+      var p = window.location.pathname;
+      return (p.indexOf('/sndk.app/') === 0 || p === '/sndk.app') ? '/sndk.app' : '';
+    }
     function goToFacility() {
       const value = document.getElementById('facilityLinkInput').value;
       const id = extractFacilityId(value || '');
@@ -65,7 +71,7 @@
         alert('لم أتعرّف على رابط أو معرّف مرفق صالح.');
         return;
       }
-      window.location.href = '/facility.html?id=' + encodeURIComponent(id);
+      window.location.href = sndkBasePath() + '/facility.html?id=' + encodeURIComponent(id);
     }
   </script>
 </body>
