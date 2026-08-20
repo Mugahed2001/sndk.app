@@ -349,6 +349,44 @@ label.field-label { font-size: 13px; font-weight: 600; color: var(--text-muted);
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ─────────────────────────── الصفحة التعريفية ─────────────────────────── */
+
+.hero {
+  text-align: center;
+  padding: 56px 16px 24px;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 20px 0;
+}
+@media (min-width: 560px) {
+  .feature-grid { grid-template-columns: 1fr 1fr; }
+}
+
+.feature-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  text-align: start;
+}
+.feature-card .section-icon { flex-shrink: 0; }
+.feature-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.feature-card p { font-size: 12.5px; color: var(--text-muted); line-height: 1.6; margin: 0; }
+
+.cta-band {
+  background: linear-gradient(135deg, var(--primary-brand), var(--secondary-teal));
+  border-radius: var(--radius-lg);
+  padding: 24px 20px;
+  text-align: center;
+  color: #fff;
+  box-shadow: var(--shadow-lg);
+}
+.cta-band p { color: rgba(255,255,255,0.9); font-size: 13px; margin: 6px 0 16px; }
+.cta-band .btn-filled { background: #fff; color: var(--primary); }
+
 footer.site-footer {
   text-align: center;
   padding: 32px 16px;
