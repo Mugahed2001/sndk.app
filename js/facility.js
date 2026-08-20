@@ -121,7 +121,7 @@ function render(facility, schedules) {
       <div class="tab-panel" id="panel-doctors">${renderDoctorsTab(doctors)}</div>
       <div class="tab-panel" id="panel-schedules">${renderSchedulesTab(schedules)}</div>
     </div>
-    <footer class="site-footer">© SND Health — sndk.app</footer>
+    <footer class="site-footer">© SND Health — sanak.codey</footer>
   `;
 
   wireInteractions(facility, schedules);
