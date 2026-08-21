@@ -80,7 +80,7 @@ function render(doctor, schedules, specialty) {
               </button>
             </div>
             ${specialtyName ? `<div class="text-muted mt-8">${esc(specialtyName)}</div>` : ''}
-            ${doctor.rating > 0 ? `<div class="text-muted mt-8">⭐ ${esc(String(doctor.rating))} (${esc(String(doctor.reviews_count || 0))})</div>` : ''}
+            ${doctor.rating > 0 ? `<div class="row gap-8 mt-8">${SNDK_ICONS.star(15, SNDK_HEX.warning)}<span class="text-muted">${esc(String(doctor.rating))} (${esc(String(doctor.reviews_count || 0))})</span></div>` : ''}
           </div>
         </div>
         ${doctor.bio ? `<p class="text-muted mt-12">${esc(doctor.bio)}</p>` : ''}

@@ -85,8 +85,8 @@ function campCard(camp) {
           <span class="chip" style="background:${badge.color}1F;color:${badge.color};flex-shrink:0;">${esc(badge.label)}</span>
         </div>
         ${organizer ? `<div class="text-muted mt-8">${esc(organizer)}</div>` : ''}
-        <div class="row gap-8 mt-8"><span class="text-muted">📅 ${esc(campDateRange(camp))}</span></div>
-        ${city ? `<div class="row gap-8 mt-8"><span class="text-muted">📍 ${esc(city)}</span></div>` : ''}
+        <div class="row gap-8 mt-8">${SNDK_ICONS.calendar(14)}<span class="text-muted">${esc(campDateRange(camp))}</span></div>
+        ${city ? `<div class="row gap-8 mt-8">${SNDK_ICONS.pin(14)}<span class="text-muted">${esc(city)}</span></div>` : ''}
         ${specialties.length ? `
           <div class="row wrap gap-8 mt-8">
             ${specialties.map((s) => `<span class="chip" style="background:rgba(10,123,147,0.12);color:var(--primary);">${esc(s.arabic_name || s.name)}</span>`).join('')}

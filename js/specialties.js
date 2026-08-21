@@ -25,7 +25,7 @@ async function main() {
 
   body.innerHTML = sorted.map((s) => `
     <a class="card card-pad feature-card" href="${sndkBasePath()}/doctors.html?specialty_id=${encodeURIComponent(s.id)}" style="text-decoration:none;color:inherit;">
-      <div class="section-icon">🩺</div>
+      <div class="section-icon">${SNDK_ICONS.stethoscope(18)}</div>
       <div><h3>${esc(s.arabic_name || s.name)}</h3></div>
     </a>
   `).join('');

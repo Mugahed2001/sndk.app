@@ -54,15 +54,68 @@ function shareLink(url, title) {
 /// هناك يكسر الخاصّية لا يَحقن HTML — لكنه صنفٌ من الأخطاء يُغلَق بابه كلياً
 /// بالتحويل إلى مفتاحٍ اسمي يُوسَّط في الشيفرة لا في نصّ الصفحة.
 const SNDK_FALLBACK_ICONS = {
-  hospital: () =>
-    '<svg width="26" height="26" viewBox="0 0 24 24" fill="none">' +
+  hospital: (size = 26) =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none">` +
     '<path d="M12 2L3 6.5V11.5C3 16.5 6.9 21.2 12 22.5C17.1 21.2 21 16.5 21 11.5V6.5L12 2Z" stroke="#0FA3BD" stroke-width="1.6"/>' +
     '<path d="M12 8V16M8 12H16" stroke="#0FA3BD" stroke-width="1.8" stroke-linecap="round"/></svg>',
-  person: () => '<span style="font-size:20px;color:var(--primary);">👤</span>',
-  camp: () =>
-    '<svg width="26" height="26" viewBox="0 0 24 24" fill="none">' +
+  person: (size = 24) =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none">` +
+    '<circle cx="12" cy="8" r="4" stroke="#0FA3BD" stroke-width="1.6"/>' +
+    '<path d="M4.5 20c0-4.1 3.4-7 7.5-7s7.5 2.9 7.5 7" stroke="#0FA3BD" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  camp: (size = 26) =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none">` +
     '<path d="M3 21l9-15 9 15H3z" stroke="#0FA3BD" stroke-width="1.6" stroke-linejoin="round"/>' +
     '<path d="M12 6l6 15" stroke="#0FA3BD" stroke-width="1.6"/></svg>',
+};
+
+/// أيقونات عامّة — بديل الرموز التعبيرية (emoji) في كل أنحاء الموقع: خطٌّ
+/// واحدٌ متّسق (24×24، stroke لا fill) نظير أسلوب أيقونات Material المُخطَّطة
+/// المستعملة في التطبيق (`_outlined`)، لا رموزٌ تختلف رسمتها بين نظام وآخر
+/// وتبدو ارتجالية. `size` بالبكسل، `color` قيمة CSS (افتراضياً currentColor
+/// فيرث لون النصّ المحيط).
+const SNDK_ICONS = {
+  calendar: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="17" rx="2" stroke="${color}" stroke-width="1.8"/><path d="M3 9h18M8 2v4M16 2v4" stroke="${color}" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+  clock: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="${color}" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  pin: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-7.1-7-12a7 7 0 1114 0c0 4.9-7 12-7 12z" stroke="${color}" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="9" r="2.4" stroke="${color}" stroke-width="1.8"/></svg>`,
+  building: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="1" stroke="${color}" stroke-width="1.7"/><path d="M9 8h1.5M13.5 8H15M9 12h1.5M13.5 12H15M9 16h1.5M13.5 16H15" stroke="${color}" stroke-width="1.7" stroke-linecap="round"/></svg>`,
+  phone: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M6.6 10.8c1.3 2.6 3.6 4.9 6.6 6.6l2-2c.3-.3.7-.4 1.1-.3 1.1.4 2.3.5 3.5.5.7 0 1.2.5 1.2 1.2V20c0 .7-.5 1.2-1.2 1.2C10.4 21.2 2.8 13.6 2.8 4.8 2.8 4.1 3.3 3.6 4 3.6h3.3c.7 0 1.2.5 1.2 1.2 0 1.2.2 2.4.5 3.5.1.4 0 .8-.3 1.1l-2.4 2.4z" stroke="${color}" stroke-width="1.6" stroke-linejoin="round"/></svg>`,
+  chat: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 01-12.4 7.6L4 20l1.1-4.2A8.5 8.5 0 1121 11.5z" stroke="${color}" stroke-width="1.7" stroke-linejoin="round"/></svg>`,
+  star: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M12 3l2.7 5.6 6.1.6-4.6 4.1 1.4 6-5.6-3.3-5.6 3.3 1.4-6-4.6-4.1 6.1-.6L12 3z" stroke="${color}" stroke-width="1.6" stroke-linejoin="round"/></svg>`,
+  lock: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="${color}" stroke-width="1.7"/><path d="M8 11V8a4 4 0 118 0v3" stroke="${color}" stroke-width="1.7"/></svg>`,
+  blocked: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="${color}" stroke-width="1.7"/><path d="M5.8 5.8l12.4 12.4" stroke="${color}" stroke-width="1.7" stroke-linecap="round"/></svg>`,
+  offline: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M8.5 16.3a5 5 0 017 0M5.3 12.9a10 10 0 013-2.3M19 12.9a10 10 0 00-2.4-1.8M12 20h.01" stroke="${color}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  card: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2" stroke="${color}" stroke-width="1.7"/><path d="M3 10h18" stroke="${color}" stroke-width="1.7"/></svg>`,
+  gift: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.35-9.5-8.5C.5 8.5 2.5 5 6 5c2 0 3.5 1.2 4 2.2C10.5 6.2 12 5 14 5c3.5 0 5.5 3.5 3.5 7.5C15 16.65 12 21 12 21z" stroke="${color}" stroke-width="1.7" stroke-linejoin="round"/></svg>`,
+  stethoscope: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M6 4v5a3 3 0 006 0V4M9 12v2.5a5 5 0 0010 0V11.5" stroke="${color}" stroke-width="1.7" stroke-linecap="round"/><circle cx="19" cy="9.5" r="2" stroke="${color}" stroke-width="1.7"/></svg>`,
+  grid: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7.5" height="7.5" rx="1.2" stroke="${color}" stroke-width="1.7"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.2" stroke="${color}" stroke-width="1.7"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.2" stroke="${color}" stroke-width="1.7"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.2" stroke="${color}" stroke-width="1.7"/></svg>`,
+  tent: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M3 21l9-15 9 15H3z" stroke="${color}" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 6l6 15" stroke="${color}" stroke-width="1.7"/></svg>`,
+  smartphone: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><rect x="7" y="2" width="10" height="20" rx="2" stroke="${color}" stroke-width="1.7"/><path d="M11 18h2" stroke="${color}" stroke-width="1.7" stroke-linecap="round"/></svg>`,
+  logout: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 17l5-5-5-5M21 12H9" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  login: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M15 21h4a2 2 0 002-2V5a2 2 0 00-2-2h-4" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 17l5-5-5-5M15 12H3" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  download: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="${color}" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+  check: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="${color}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  infinity: (size = 16, color = 'currentColor') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M7 9a3.5 3.5 0 000 7c2 0 3.2-1.6 5-4.5S15 5 17 5a3.5 3.5 0 010 7c-2 0-3.2-1.6-5-4.5S9.5 9 7 9z" stroke="${color}" stroke-width="1.7" stroke-linejoin="round"/></svg>`,
 };
 
 /// يُنادى بعد كل `innerHTML` يحمل صوراً بخاصّية `data-fallback-type`. عنصرٌ
@@ -262,9 +315,9 @@ function facilityContactFallback(facility) {
       <p class="text-muted" style="font-size:12px;margin:0 0 8px;">الحجز الإلكتروني غير متاح لهذا الموعد — تواصل مع المرفق مباشرة.</p>
       <div class="row gap-8">
         <button class="btn btn-sm btn-filled contact-call-btn" style="flex:1;" data-phone="${esc(phone || '')}"
-                ${phone ? '' : 'disabled title="لا رقم اتصال مسجَّل"'}>📞 اتصال</button>
+                ${phone ? '' : 'disabled title="لا رقم اتصال مسجَّل"'}>${SNDK_ICONS.phone(15)} اتصال</button>
         <button class="btn btn-sm btn-outline contact-wa-btn" style="flex:1;" data-whatsapp="${esc(whatsapp || '')}"
-                ${whatsapp ? '' : 'disabled title="لا رقم واتساب مسجَّل"'}>💬 واتساب</button>
+                ${whatsapp ? '' : 'disabled title="لا رقم واتساب مسجَّل"'}>${SNDK_ICONS.chat(15)} واتساب</button>
       </div>
     </div>
   `;
@@ -287,7 +340,7 @@ function scheduleCardHtml(s, facility, canBook, { showDoctor = true, showFacilit
         ${showFacility && facility ? `<a href="${sndkBasePath()}/facility/${esc(facility.id)}" class="text-muted mt-8" style="display:block;font-weight:600;color:var(--primary);">${esc(facility.name)}</a>` : ''}
         ${showSubFacility && subFacilityLabel ? `<div class="text-muted mt-8">${esc(subFacilityLabel)}</div>` : ''}
         <div class="text-muted mt-8">${esc([period, time].filter(Boolean).join(' · '))}</div>
-        <div class="text-muted mt-8">📅 ${esc(days)}</div>
+        <div class="row gap-8 mt-8">${SNDK_ICONS.calendar(14)}<span class="text-muted">${esc(days)}</span></div>
         ${canBook ? '' : facilityContactFallback(facility)}
       </div>
       <div class="row gap-8" style="flex-shrink:0;">
@@ -322,8 +375,8 @@ function facilityCardHtml(f) {
             ${location ? `<span class="chip" style="background:${SNDK_HEX.primary}1F;color:${SNDK_HEX.primary};">${esc(location)}</span>` : ''}
           </div>
           <div class="row gap-8 mt-8">
-            ${phones[0] ? `<button class="btn btn-sm btn-outline facility-call-btn" data-phone="${esc(phones[0])}">📞 اتصال</button>` : ''}
-            ${whatsapps[0] ? `<button class="btn btn-sm btn-outline facility-wa-btn" data-whatsapp="${esc(whatsapps[0])}">💬 واتساب</button>` : ''}
+            ${phones[0] ? `<button class="btn btn-sm btn-outline facility-call-btn" data-phone="${esc(phones[0])}">${SNDK_ICONS.phone(14)} اتصال</button>` : ''}
+            ${whatsapps[0] ? `<button class="btn btn-sm btn-outline facility-wa-btn" data-whatsapp="${esc(whatsapps[0])}">${SNDK_ICONS.chat(14)} واتساب</button>` : ''}
           </div>
         </div>
       </div>
@@ -367,7 +420,7 @@ function doctorCardHtml(d, specialtiesById) {
         <div style="flex:1;min-width:0;">
           <div style="font-weight:700;">${esc(d.name)}</div>
           ${specialtyName ? `<div class="text-muted mt-8">${esc(specialtyName)}</div>` : ''}
-          ${d.rating > 0 ? `<div class="text-muted mt-8">⭐ ${esc(String(d.rating))} (${esc(String(d.reviews_count || 0))})</div>` : ''}
+          ${d.rating > 0 ? `<div class="row gap-8 mt-8">${SNDK_ICONS.star(14, SNDK_HEX.warning)}<span class="text-muted">${esc(String(d.rating))} (${esc(String(d.reviews_count || 0))})</span></div>` : ''}
         </div>
       </div>
     </div>
