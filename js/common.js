@@ -105,6 +105,19 @@ function campSpecialties(camp) {
 /// كلاهما يعرض بطاقة موعد بنفس التصنيف.
 const PERIOD_LABELS = { morning: 'صباحية', evening: 'مسائية', fullDay: 'طوال اليوم' };
 
+/// أسماء أيام العمل الكاملة — نظير `ScheduleDay` في التطبيق حرفياً: نفس
+/// ترقيم التطبيق (السبت = 0 … الجمعة = 6)، لا ترقيم JS القياسي (Date.getDay
+/// يبدأ بالأحد = 0). `schedule.working_days` يصل بهذا الترقيم من القاعدة.
+const DAY_NAMES_AR = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+function workingDaysLabel(workingDays) {
+  // الفاصل ' و ' لا فاصلة — نظير l10n.translate('and') المستعمل حرفياً في
+  // ScheduleEntryCard.
+  return (workingDays || [])
+    .filter((d) => d >= 0 && d < DAY_NAMES_AR.length)
+    .map((d) => DAY_NAMES_AR[d])
+    .join(' و ');
+}
+
 /// نظائر Hex لمتغيرات CSS في :root — `var(--x)` لا يقبل لاحقة شفافية هكسا
 /// (`var(--x)1F` قيمةٌ غير صالحة فيُسقِطها المتصفّح بصمت)، فحيثما احتجنا دمج
 /// شفافية بلاحقة كهذه نستعمل القيمة الحرفية هنا بدل المتغيّر.

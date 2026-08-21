@@ -72,6 +72,7 @@ function render(facility, schedule) {
   const groupLabel = (schedule.sub_facility && schedule.sub_facility.name)
     || (schedule.specialties && schedule.specialties.arabic_name)
     || '';
+  const days = workingDaysLabel(schedule.working_days);
 
   document.getElementById('root').innerHTML = `
     <div class="container" style="padding-top:16px;">
@@ -97,6 +98,7 @@ function render(facility, schedule) {
               ${period ? `<span class="chip" style="background:rgba(15,163,189,0.12);color:var(--secondary-teal);">${esc(period)}</span>` : ''}
               ${time ? `<span class="chip" style="background:rgba(102,126,234,0.12);color:var(--accent-purple);">${esc(time)}</span>` : ''}
             </div>
+            <div class="text-muted mt-8">📅 ${esc(days || 'لم يحدد')}</div>
           </div>
         </div>
         <button class="btn btn-filled btn-block mt-16" id="apptBookBtn">احجز الآن</button>
