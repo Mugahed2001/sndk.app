@@ -217,11 +217,13 @@ function renderSchedulesTab(schedules) {
 function scheduleRow(s) {
   const period = PERIOD_LABELS[s.period] || s.period || '';
   const time = s.start_time && s.end_time ? `${s.start_time.slice(0, 5)} – ${s.end_time.slice(0, 5)}` : '';
+  const days = workingDaysLabel(s.working_days) || 'لم يحدد';
   return `
     <div class="row spread">
       <div>
         <div style="font-weight:700;">${esc(s.doctors ? s.doctors.name : '')}</div>
         <div class="text-muted mt-8">${esc([period, time].filter(Boolean).join(' · '))}</div>
+        <div class="text-muted mt-8">📅 ${esc(days)}</div>
       </div>
       <div class="row gap-8">
         <button class="btn btn-sm btn-outline share-schedule-btn" data-schedule-id="${esc(s.id)}"
