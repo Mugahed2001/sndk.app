@@ -4,10 +4,15 @@
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'">
 <title>سندك الطبي</title>
-<link rel="icon" type="image/png" href="img/logo.png">
+<link rel="icon" type="image/png" href="/img/logo.png">
 </head>
 <body>
-<script src="js/routing.js"></script>
-<script src="js/404-redirect.js"></script>
+<!-- مسارات جذرية لا نسبية عمداً: هذه الصفحة وحدها تُخدَّم عند أي عمق مسار
+     (‎/facility/<uuid>‎، ‎/appointment/<uuid>‎...)، فمسارٌ نسبي كـ«js/routing.js»
+     يُحلّ نسبةً إلى شريط العنوان الحالي لا إلى جذر الموقع الفعلي — فيصير
+     «/facility/js/routing.js» بدل «/js/routing.js» ويفشل 404. باقي صفحات
+     الموقع تُخدَّم دائماً من عمقٍ ثابت معروف فتبقى مساراتها نسبية بأمان. -->
+<script src="/js/routing.js"></script>
+<script src="/js/404-redirect.js"></script>
 </body>
 </html>
