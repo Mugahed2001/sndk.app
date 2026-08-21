@@ -332,7 +332,7 @@ const SndkBooking = (() => {
     const token = appointment && appointment.queue_number;
     const sheet = openModal(`
       <div class="state-box">
-        <svg width="56" height="56" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#56AB2F" stroke-width="2"/><path d="M8 12l3 3 5-6" stroke="#56AB2F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="var(--primary)" stroke-width="2"/><path d="M8 12l3 3 5-6" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <div class="title-md mt-12" style="color:var(--text);">تمّ الحجز بنجاح</div>
         ${token ? `<p class="text-muted mt-8">رقم دورك: <strong>${esc(token)}</strong></p>` : ''}
         <p class="text-muted mt-8">يمكنك متابعة حجوزاتك من تطبيق سندك الطبي.</p>
@@ -391,7 +391,7 @@ const SndkBooking = (() => {
         const token = appointment && appointment.queue_number;
         body.innerHTML = `
           <div class="state-box">
-            <svg width="56" height="56" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#56AB2F" stroke-width="2"/><path d="M8 12l3 3 5-6" stroke="#56AB2F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="var(--primary)" stroke-width="2"/><path d="M8 12l3 3 5-6" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <div class="title-md mt-12" style="color:var(--text);">تمّ الدفع وتأكيد الحجز</div>
             ${token ? `<p class="text-muted mt-8">رقم دورك: <strong>${esc(token)}</strong></p>` : ''}
             <button class="btn btn-filled btn-block mt-16" id="payDoneBtn">تم</button>

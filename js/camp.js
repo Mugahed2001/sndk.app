@@ -156,7 +156,7 @@ function renderSeatsPanel(availability, failed) {
   if (!availability.capacity_total) {
     el.innerHTML = `
       <div class="card card-pad" style="background:rgba(86,171,47,0.08);">
-        <div class="row gap-8"><span style="color:var(--success);">${SNDK_ICONS.infinity(16)}</span><strong>سعة مفتوحة</strong></div>
+        <div class="row gap-8">${SNDK_ICONS.infinity(16)}<strong>سعة مفتوحة</strong></div>
         <div class="text-muted mt-8">عدد المسجَّلين حتى الآن: ${esc(String(availability.registrations_count))}</div>
       </div>
     `;
@@ -189,7 +189,7 @@ function renderRegisterArea(camp, availability, failed) {
   const el = document.getElementById('registerArea');
 
   if (!campRequiresRegistration(camp)) {
-    el.innerHTML = notice(SNDK_ICONS.check(15, SNDK_HEX.info), 'لا حاجة للتسجيل المسبق في هذا المخيم.', SNDK_HEX.info);
+    el.innerHTML = notice(SNDK_ICONS.check(15), 'لا حاجة للتسجيل المسبق في هذا المخيم.');
     return;
   }
 
@@ -197,13 +197,13 @@ function renderRegisterArea(camp, availability, failed) {
     const text = availability
       ? (CAMP_REASON_MESSAGES[availability.reason] || 'التسجيل غير متاح حالياً.')
       : (failed ? 'تعذّر التحقق من إتاحة المقاعد.' : 'جارٍ التحقق من الإتاحة…');
-    el.innerHTML = notice(failed ? SNDK_ICONS.offline(15, SNDK_HEX.error) : SNDK_ICONS.blocked(15, SNDK_HEX.error), text, SNDK_HEX.error);
+    el.innerHTML = notice(failed ? SNDK_ICONS.offline(15) : SNDK_ICONS.blocked(15), text);
     return;
   }
 
   if (!campAllowsGuest(camp) && !SndkAuth.isLoggedIn()) {
     el.innerHTML = `
-      ${notice(SNDK_ICONS.lock(15, SNDK_HEX.warning), 'هذا المخيم يتطلّب حساباً للتسجيل.', SNDK_HEX.warning)}
+      ${notice(SNDK_ICONS.lock(15), 'هذا المخيم يتطلّب حساباً للتسجيل.')}
       <button class="btn btn-filled btn-block mt-12" id="campLoginBtn">تسجيل الدخول</button>
     `;
     document.getElementById('campLoginBtn').addEventListener('click', () => {
@@ -218,10 +218,12 @@ function renderRegisterArea(camp, availability, failed) {
   });
 }
 
-function notice(icon, text, color) {
+// لونٌ واحد — هوية الموقع، لا ترميز دلالي (خطأ/تحذير/معلومة بألوان مختلفة).
+// النصّ نفسه هو ما يحمل الفرق بين حالة وأخرى، لا لون البطاقة.
+function notice(icon, text) {
   return `
-    <div class="card card-pad" style="background:${color}14;">
-      <div class="row gap-8"><span>${icon}</span><span style="color:${color};font-weight:700;">${esc(text)}</span></div>
+    <div class="card card-pad" style="background:${SNDK_HEX.primary}14;">
+      <div class="row gap-8"><span>${icon}</span><span style="color:${SNDK_HEX.primary};font-weight:700;">${esc(text)}</span></div>
     </div>
   `;
 }
@@ -253,7 +255,7 @@ function openRegisterForm(camp, availability, initial) {
     <label class="field-label">رقم الهاتف</label>
     <input class="field" id="campPhone" value="${esc(state.phone)}" placeholder="7XXXXXXXX"
            style="direction:ltr;text-align:right;" ${state.grantToken ? 'disabled' : ''}>
-    ${state.grantToken ? `<p class="text-muted mt-8" style="margin-top:-8px;">${SNDK_ICONS.check(13, SNDK_HEX.success)} رقمٌ موثَّق لهذا التسجيل</p>` : ''}
+    ${state.grantToken ? `<p class="text-muted mt-8" style="margin-top:-8px;">${SNDK_ICONS.check(13)} رقمٌ موثَّق لهذا التسجيل</p>` : ''}
 
     <div class="row gap-8">
       <div style="flex:1;">
@@ -382,7 +384,7 @@ async function submitRegistration(sheet, camp, availability, state, allowVerific
 function showCampSuccess(registration) {
   const sheet = SndkBooking.openModal(`
     <div class="state-box">
-      <svg width="56" height="56" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#56AB2F" stroke-width="2"/><path d="M8 12l3 3 5-6" stroke="#56AB2F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg width="56" height="56" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="var(--primary)" stroke-width="2"/><path d="M8 12l3 3 5-6" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <div class="title-md mt-12" style="color:var(--text);">تمّ التسجيل بنجاح</div>
       ${registration && registration.serial_number != null ? `<p class="text-muted mt-8">رقم التسلسل: <strong>#${esc(String(registration.serial_number))}</strong></p>` : ''}
       ${registration && registration.registration_code ? `<p class="text-muted mt-8">رمز التسجيل: <strong>${esc(registration.registration_code)}</strong></p>` : ''}
