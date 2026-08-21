@@ -20,73 +20,46 @@
     </div>
   </div>
 
-  <div class="hero">
-    <img src="img/logo.png" alt="سندك الطبي" width="84" height="84"
-         style="border-radius:24px;margin:0 auto 20px;display:block;
+  <div class="hero" style="padding:32px 16px 20px;">
+    <img src="img/logo.png" alt="سندك الطبي" width="64" height="64"
+         style="border-radius:18px;margin:0 auto 14px;display:block;
                 box-shadow:0 12px 30px rgba(11,130,155,0.35);">
-    <h1 class="title-lg" style="font-size:26px;">سندك الطبي</h1>
-    <p style="margin-top:4px; font-size:14px; font-weight:700; color:var(--primary);">
+    <h1 class="title-lg" style="font-size:22px;">سندك الطبي</h1>
+    <p style="margin-top:4px; font-size:13px; font-weight:700; color:var(--primary);">
       الخدمات الطبية بين يديك
     </p>
   </div>
 
   <div class="container" style="max-width:640px;">
-    <p class="text-muted" style="text-align:center; font-size:15px; line-height:1.8; margin:0 0 8px;">
-      منصّة واحدة تجمع مرافقك الصحية المفضّلة — عيادات ومستشفيات ومراكز طبية —
-      في مكان واحد: تصفّح أطبّاءها، اطّلع على جدولة مواعيدهم لحظة بلحظة،
-      واحجز موعدك بنفسك دون انتظار على الهاتف.
-    </p>
+    <div class="row gap-8">
+      <input id="homeSearchInput" class="field" style="margin:0;" placeholder="ابحث عن طبيب أو تخصص…">
+      <button class="btn btn-filled" id="homeSearchBtn">بحث</button>
+    </div>
 
-    <div class="feature-grid">
-      <div class="card card-pad feature-card">
+    <div class="section-title" style="margin:24px 0 8px;">مرافق مميّزة</div>
+    <div id="featuredFacilities">
+      <div class="skeleton" style="height:90px;"></div>
+      <div class="skeleton" style="height:90px;"></div>
+    </div>
+    <a href="facilities.html" class="btn btn-outline btn-block mt-8">عرض كل المرافق</a>
+
+    <div class="section-title" style="margin:24px 0 8px;">أطباء</div>
+    <div id="featuredDoctors">
+      <div class="skeleton" style="height:70px;"></div>
+      <div class="skeleton" style="height:70px;"></div>
+    </div>
+    <a href="doctors.html" class="btn btn-outline btn-block mt-8">عرض كل الأطباء</a>
+
+    <div class="feature-grid mt-16">
+      <a class="card card-pad feature-card" href="specialties.html" style="text-decoration:none;color:inherit;">
         <div class="section-icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         </div>
         <div>
-          <h3>ابحث عن مرفقك</h3>
-          <p>بالمحافظة أو التخصص أو اسم الطبيب — نتائج مرتّبة وواضحة.</p>
+          <h3>التخصصات</h3>
+          <p>تصفّح حسب التخصص الطبي واعثر على طبيبك مباشرة.</p>
         </div>
-      </div>
-
-      <div class="card card-pad feature-card">
-        <div class="section-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="17" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 9h18M8 2v4M16 2v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        </div>
-        <div>
-          <h3>جدولة الأطباء</h3>
-          <p>أيام العمل والأوقات المتاحة لكل طبيب، مُحدَّثة لحظياً.</p>
-        </div>
-      </div>
-
-      <div class="card card-pad feature-card">
-        <div class="section-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2L3 6.5V11.5C3 16.5 6.9 21.2 12 22.5C17.1 21.2 21 16.5 21 11.5V6.5L12 2Z" stroke="currentColor" stroke-width="1.6"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-        <div>
-          <h3>حجزٌ فوري</h3>
-          <p>احجز موعدك مباشرة، أو انضمّ لقائمة انتظار ذكية تُبلغك عند توفّر مقعد.</p>
-        </div>
-      </div>
-
-      <div class="card card-pad feature-card">
-        <div class="section-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.35-9.5-8.5C.5 8.5 2.5 5 6 5c2 0 3.5 1.2 4 2.2C10.5 6.2 12 5 14 5c3.5 0 5.5 3.5 3.5 7.5C15 16.65 12 21 12 21z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-        </div>
-        <div>
-          <h3>مرافقك المفضّلة</h3>
-          <p>احفظ عياداتك وأطبّاءك المعتادين للوصول إليهم بضغطة واحدة.</p>
-        </div>
-      </div>
-
-      <div class="card card-pad feature-card">
-        <div class="section-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 8v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/></svg>
-        </div>
-        <div>
-          <h3>تابع حجوزاتك</h3>
-          <p>رقم دورك، وقت الانتظار المتوقّع، وحالة كل حجز — أوّلاً بأوّل.</p>
-        </div>
-      </div>
+      </a>
 
       <a class="card card-pad feature-card" href="camps.html" style="text-decoration:none;color:inherit;">
         <div class="section-icon">
@@ -101,7 +74,7 @@
 
     <div class="cta-band mt-16">
       <div style="font-weight:800; font-size:17px;">حمّل تطبيق سندك الطبي</div>
-      <p>كل هذه الخدمات في جيبك — تنبيهات، متابعة لحظية، وتجربة أسرع.</p>
+      <p>متابعة حجوزاتك وإشعاراتها وتجربة أسرع — كلها في جيبك.</p>
       <a class="btn btn-filled" href="https://play.google.com/store/apps/details?id=com.code_yemen.snd_health">
         حمّله من Google Play
       </a>

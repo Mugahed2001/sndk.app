@@ -1,5 +1,9 @@
-// الصفحة الرئيسية — فتح صفحة مرفق من رابط أو معرّف يلصقه الزائر.
-// sndkBasePath من routing.js، esc من common.js.
+// الصفحة الرئيسية — نظير guest_home_screen.dart، لكن بجلبٍ محدود لا جلب كل
+// المرافق/الأطباء ثم الترشيح محلياً (منطقي هناك بتخزينه المحلي الدائم،
+// ثقيلٌ هنا في كل زيارة صفحة): مرافق مميّزة ٦ (مرتّبة بـpriority_score)،
+// أطباء ٦ — كلٌّ مجرّد بطاقة تقود إلى القائمة الكاملة. esc/facilityCardHtml/
+// doctorCardHtml/wireFacilityCards/wireDoctorCards/wireImageFallbacks من
+// common.js، sndkBasePath من routing.js.
 
 function renderTopbar() {
   document.getElementById('topbarActions').innerHTML = SndkAuth.isLoggedIn()
@@ -7,6 +11,53 @@ function renderTopbar() {
     : '';
 }
 renderTopbar();
+
+async function loadFeaturedFacilities() {
+  const body = document.getElementById('featuredFacilities');
+  try {
+    const facilities = await SndkApi.getData('get-facilities', { query: { limit: 30 } });
+    const top = Array.isArray(facilities)
+      ? [...facilities].sort((a, b) => (b.priority_score || 0) - (a.priority_score || 0)).slice(0, 6)
+      : [];
+    if (top.length === 0) {
+      body.innerHTML = '<div class="state-box">لا مرافق متاحة حالياً.</div>';
+      return;
+    }
+    body.innerHTML = top.map((f) => facilityCardHtml(f)).join('');
+    wireImageFallbacks(body);
+    wireFacilityCards(body);
+  } catch (_) {
+    body.innerHTML = '<div class="state-box">تعذّر تحميل المرافق.</div>';
+  }
+}
+
+async function loadFeaturedDoctors() {
+  const body = document.getElementById('featuredDoctors');
+  try {
+    const doctors = await SndkApi.getData('get-doctors', { query: { limit: 6 } });
+    if (!Array.isArray(doctors) || doctors.length === 0) {
+      body.innerHTML = '<div class="state-box">لا أطباء متاحون حالياً.</div>';
+      return;
+    }
+    body.innerHTML = doctors.map((d) => doctorCardHtml(d, {})).join('');
+    wireImageFallbacks(body);
+    wireDoctorCards(body);
+  } catch (_) {
+    body.innerHTML = '<div class="state-box">تعذّر تحميل الأطباء.</div>';
+  }
+}
+
+function runHomeSearch() {
+  const q = document.getElementById('homeSearchInput').value.trim();
+  window.location.href = `${sndkBasePath()}/doctors.html${q ? `?q=${encodeURIComponent(q)}` : ''}`;
+}
+document.getElementById('homeSearchBtn').addEventListener('click', runHomeSearch);
+document.getElementById('homeSearchInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') runHomeSearch();
+});
+
+loadFeaturedFacilities();
+loadFeaturedDoctors();
 
 function extractFacilityId(input) {
   const trimmed = input.trim();

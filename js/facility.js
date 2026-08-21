@@ -1,12 +1,7 @@
 // شاشة المرفق — نظير guest_facility_profile_screen.dart: نفس البطاقة
 // العلوية، ونفس التبويبات الثلاثة (معلومات / أطباء / أقسام ومواعيد).
-// esc/cleanPhone/wireImageFallbacks/PERIOD_LABELS من common.js، sndkBasePath من routing.js.
-
-const FACILITY_TYPE_LABELS = {
-  hospital: 'مستشفى', clinic: 'عيادة', medicalCenter: 'مركز طبي',
-  medical_center: 'مركز طبي', laboratory: 'مختبر', pharmacy: 'صيدلية',
-  radiology: 'أشعة', other: 'أخرى',
-};
+// esc/cleanPhone/wireImageFallbacks/PERIOD_LABELS/FACILITY_TYPE_LABELS من
+// common.js، sndkBasePath من routing.js.
 
 async function main() {
   const params = new URLSearchParams(window.location.search);
@@ -228,33 +223,10 @@ function renderSchedulesTab(schedules, facility, bookingFacilityIds, facilityDoc
   return Object.entries(groups).map(([label, rows]) => `
     <div class="card card-pad mb-12">
       <div class="section-title" style="margin:0 0 12px;">${esc(label)}</div>
-      ${rows.map((s) => scheduleRow(s, facility, scheduleAcceptsBooking(s, bookingFacilityIds, facilityDoctorFlags)))
+      ${rows.map((s) => scheduleCardHtml(s, facility, scheduleAcceptsBooking(s, bookingFacilityIds, facilityDoctorFlags), { showDoctor: true }))
         .join('<div style="height:1px;background:var(--border);margin:12px 0;"></div>')}
     </div>
   `).join('');
-}
-
-function scheduleRow(s, facility, canBook) {
-  const period = PERIOD_LABELS[s.period] || s.period || '';
-  const time = s.start_time && s.end_time ? `${s.start_time.slice(0, 5)} – ${s.end_time.slice(0, 5)}` : '';
-  const days = workingDaysLabel(s.working_days) || 'لم يحدد';
-  return `
-    <div class="row spread" style="align-items:flex-start;">
-      <div style="flex:1;min-width:0;">
-        <div style="font-weight:700;">${esc(s.doctors ? s.doctors.name : '')}</div>
-        <div class="text-muted mt-8">${esc([period, time].filter(Boolean).join(' · '))}</div>
-        <div class="text-muted mt-8">📅 ${esc(days)}</div>
-        ${canBook ? '' : facilityContactFallback(facility)}
-      </div>
-      <div class="row gap-8" style="flex-shrink:0;">
-        <button class="btn btn-sm btn-outline share-schedule-btn" data-schedule-id="${esc(s.id)}"
-                title="مشاركة الموعد">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M13.5 6.5L17.5 10.5M4 20l1-4.5L14.5 6l3.5 3.5L9.5 19 5 20H4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-        </button>
-        ${canBook ? `<button class="btn btn-sm btn-filled book-btn" data-schedule-id="${esc(s.id)}">احجز</button>` : ''}
-      </div>
-    </div>
-  `;
 }
 
 function wireInteractions(facility, schedules) {

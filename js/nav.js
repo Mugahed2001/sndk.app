@@ -39,7 +39,15 @@ function openNavDrawer() {
       </div>
     </div>
 
-    <div class="section-title" style="margin:20px 0 8px;">الخدمات</div>
+    <div class="row gap-8 mt-16">
+      <input class="field" id="navSearchInput" style="margin:0;" placeholder="ابحث عن طبيب…">
+      <button class="btn btn-filled" id="navSearchBtn">بحث</button>
+    </div>
+
+    <div class="section-title" style="margin:20px 0 8px;">تصفّح</div>
+    <button class="btn btn-outline btn-block mb-12" id="navFacilitiesBtn" style="justify-content:flex-start;">🏥 المرافق الصحية</button>
+    <button class="btn btn-outline btn-block mb-12" id="navDoctorsBtn" style="justify-content:flex-start;">👨‍⚕️ الأطباء</button>
+    <button class="btn btn-outline btn-block mb-12" id="navSpecialtiesBtn" style="justify-content:flex-start;">🩺 التخصصات</button>
     <button class="btn btn-outline btn-block mb-12" id="navCampsBtn" style="justify-content:flex-start;">🏕️ المخيمات الطبية</button>
     <button class="btn btn-outline btn-block mb-12" id="navBookingsBtn" style="justify-content:flex-start;">📅 مواعيدي</button>
 
@@ -53,10 +61,24 @@ function openNavDrawer() {
     </a>
   `);
 
-  sheet.querySelector('#navCampsBtn').addEventListener('click', () => {
+  function goTo(path) {
     sndkCloseModal();
-    window.location.href = `${base}/camps.html`;
+    window.location.href = `${base}${path}`;
+  }
+
+  function runSearch() {
+    const q = sheet.querySelector('#navSearchInput').value.trim();
+    goTo(`/doctors.html${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+  }
+  sheet.querySelector('#navSearchBtn').addEventListener('click', runSearch);
+  sheet.querySelector('#navSearchInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') runSearch();
   });
+
+  sheet.querySelector('#navFacilitiesBtn').addEventListener('click', () => goTo('/facilities.html'));
+  sheet.querySelector('#navDoctorsBtn').addEventListener('click', () => goTo('/doctors.html'));
+  sheet.querySelector('#navSpecialtiesBtn').addEventListener('click', () => goTo('/specialties.html'));
+  sheet.querySelector('#navCampsBtn').addEventListener('click', () => goTo('/camps.html'));
   sheet.querySelector('#navBookingsBtn').addEventListener('click', () => {
     sndkCloseModal();
     showBookingsNudge();
