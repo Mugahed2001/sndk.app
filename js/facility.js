@@ -1,27 +1,12 @@
 // شاشة المرفق — نظير guest_facility_profile_screen.dart: نفس البطاقة
 // العلوية، ونفس التبويبات الثلاثة (معلومات / أطباء / أقسام ومواعيد).
+// esc/cleanPhone/wireImageFallbacks/PERIOD_LABELS من common.js، sndkBasePath من routing.js.
 
-const PERIOD_LABELS = { morning: 'صباحية', evening: 'مسائية', fullDay: 'طوال اليوم' };
 const FACILITY_TYPE_LABELS = {
   hospital: 'مستشفى', clinic: 'عيادة', medicalCenter: 'مركز طبي',
   medical_center: 'مركز طبي', laboratory: 'مختبر', pharmacy: 'صيدلية',
   radiology: 'أشعة', other: 'أخرى',
 };
-
-function esc(s) {
-  const div = document.createElement('div');
-  div.textContent = s == null ? '' : String(s);
-  return div.innerHTML;
-}
-
-function cleanPhone(p) { return (p || '').replace(/\s+/g, ''); }
-
-// نظير الدالة نفسها في 404.html وindex.html — القاعدة تختلف بين نطاقٍ
-// مخصّص (جذر) وصفحات GitHub الافتراضية (تحت اسم الريبو `/sndk.app/`).
-function sndkBasePath() {
-  const p = window.location.pathname;
-  return (p.indexOf('/sndk.app/') === 0 || p === '/sndk.app') ? '/sndk.app' : '';
-}
 
 async function main() {
   const params = new URLSearchParams(window.location.search);
@@ -29,7 +14,7 @@ async function main() {
 
   if (params.get('pretty') === '1' && id) {
     // يُعيد شريط العنوان إلى شكله الجميل بعد أن قرأنا المعرّف من الاستعلام —
-    // انظر تعليق 404.html.
+    // انظر تعليق 404-redirect.js.
     window.history.replaceState(null, '', `${sndkBasePath()}/facility/${id}`);
   }
 
@@ -94,8 +79,8 @@ function render(facility, schedules) {
       <div class="row gap-12" style="align-items:flex-start;">
         <div class="avatar" id="facilityAvatar">
           ${facility.image_url
-            ? `<img src="${esc(facility.image_url)}" alt="" onerror="this.closest('.avatar').innerHTML=window.__hospitalIconSvg()">`
-            : hospitalIconSvg()}
+            ? `<img src="${esc(facility.image_url)}" alt="" data-fallback-type="hospital">`
+            : SNDK_FALLBACK_ICONS.hospital()}
         </div>
         <div style="flex:1;min-width:0;">
           <div class="row spread">
@@ -103,9 +88,9 @@ function render(facility, schedules) {
             <button class="btn btn-sm btn-outline" id="shareBtn" title="نسخ الرابط">مشاركة</button>
           </div>
           <div class="row wrap gap-8 mt-12">
-            ${facility.type ? chip(FACILITY_TYPE_LABELS[facility.type] || facility.type, 'var(--secondary-teal)') : ''}
-            ${locationLabel(facility) ? chip(locationLabel(facility), 'var(--primary)') : ''}
-            ${doctors.length ? chip(`${doctors.length} طبيب`, 'var(--accent-purple)') : ''}
+            ${facility.type ? chip(FACILITY_TYPE_LABELS[facility.type] || facility.type, SNDK_HEX.secondaryTeal) : ''}
+            ${locationLabel(facility) ? chip(locationLabel(facility), SNDK_HEX.primary) : ''}
+            ${doctors.length ? chip(`${doctors.length} طبيب`, SNDK_HEX.accentPurple) : ''}
           </div>
           <div class="row wrap gap-8 mt-12" id="primaryActions">
             ${primaryPhone ? `<button class="btn btn-sm btn-filled" id="callBtn">اتصال</button>` : ''}
@@ -128,16 +113,12 @@ function render(facility, schedules) {
       <div class="tab-panel" id="panel-doctors">${renderDoctorsTab(doctors)}</div>
       <div class="tab-panel" id="panel-schedules">${renderSchedulesTab(schedules)}</div>
     </div>
-    <footer class="site-footer">© سندك الطبي — codeyemen.sytes.net</footer>
+    <footer class="site-footer">© سندك الطبي</footer>
   `;
 
+  wireImageFallbacks(document.getElementById('root'));
   wireInteractions(facility, schedules);
 }
-
-function hospitalIconSvg() {
-  return `<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 2L3 6.5V11.5C3 16.5 6.9 21.2 12 22.5C17.1 21.2 21 16.5 21 11.5V6.5L12 2Z" stroke="#0FA3BD" stroke-width="1.6"/><path d="M12 8V16M8 12H16" stroke="#0FA3BD" stroke-width="1.8" stroke-linecap="round"/></svg>`;
-}
-window.__hospitalIconSvg = hospitalIconSvg;
 
 function chip(label, color) {
   return `<span class="chip" style="background:${color}1F;color:${color};">${esc(label)}</span>`;
@@ -169,7 +150,7 @@ function renderInfoTab(facility, phones, whatsapps) {
 
   if (facility.specialties && facility.specialties.length) {
     html += sectionTitle('التخصصات المتاحة');
-    html += `<div class="row wrap gap-8 mb-12">${facility.specialties.map((s) => chip(s, 'var(--primary)')).join('')}</div>`;
+    html += `<div class="row wrap gap-8 mb-12">${facility.specialties.map((s) => chip(s, SNDK_HEX.primary)).join('')}</div>`;
   }
 
   if (facility.description) {
@@ -199,8 +180,8 @@ function renderDoctorsTab(doctors) {
       <div class="row gap-12">
         <div class="avatar" style="width:48px;height:48px;border-radius:50%;">
           ${d.photo_url
-            ? `<img src="${esc(d.photo_url)}" alt="" onerror="this.closest('.avatar').innerHTML='<span style=&quot;font-size:20px;color:var(--primary);&quot;>👤</span>'">`
-            : '<span style="font-size:20px;color:var(--primary);">👤</span>'}
+            ? `<img src="${esc(d.photo_url)}" alt="" data-fallback-type="person">`
+            : SNDK_FALLBACK_ICONS.person()}
         </div>
         <div style="flex:1;">
           <div style="font-weight:700;">${esc(d.name)}</div>
@@ -242,7 +223,13 @@ function scheduleRow(s) {
         <div style="font-weight:700;">${esc(s.doctors ? s.doctors.name : '')}</div>
         <div class="text-muted mt-8">${esc([period, time].filter(Boolean).join(' · '))}</div>
       </div>
-      <button class="btn btn-sm btn-filled book-btn" data-schedule-id="${s.id}">احجز</button>
+      <div class="row gap-8">
+        <button class="btn btn-sm btn-outline share-schedule-btn" data-schedule-id="${esc(s.id)}"
+                data-facility-id="${esc(s.facility_id)}" title="مشاركة الموعد">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M13.5 6.5L17.5 10.5M4 20l1-4.5L14.5 6l3.5 3.5L9.5 19 5 20H4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="btn btn-sm btn-filled book-btn" data-schedule-id="${esc(s.id)}">احجز</button>
+      </div>
     </div>
   `;
 }
@@ -258,13 +245,7 @@ function wireInteractions(facility, schedules) {
   });
 
   document.getElementById('shareBtn')?.addEventListener('click', () => {
-    const url = `${window.location.origin}${sndkBasePath()}/facility/${facility.id}`;
-    if (navigator.share) {
-      navigator.share({ title: facility.name, url }).catch(() => {});
-    } else {
-      navigator.clipboard.writeText(url);
-      alert('نُسخ الرابط.');
-    }
+    shareLink(`${window.location.origin}${sndkBasePath()}/facility/${facility.id}`, facility.name);
   });
 
   const phones = facility.phones && facility.phones.length ? facility.phones : (facility.phone ? [facility.phone] : []);
@@ -284,6 +265,15 @@ function wireInteractions(facility, schedules) {
     btn.addEventListener('click', () => {
       const schedule = schedules.find((s) => s.id === btn.dataset.scheduleId);
       if (schedule) SndkBooking.start(schedule, facility);
+    });
+  });
+
+  document.querySelectorAll('.share-schedule-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const schedule = schedules.find((s) => s.id === btn.dataset.scheduleId);
+      const url = `${window.location.origin}${sndkBasePath()}/appointment/${btn.dataset.facilityId}/${btn.dataset.scheduleId}`;
+      shareLink(url, schedule && schedule.doctors ? schedule.doctors.name : 'موعد');
     });
   });
 }

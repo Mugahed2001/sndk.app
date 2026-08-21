@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https://zoveiphxwzckgzavvrlb.supabase.co data:; connect-src 'self' https://zoveiphxwzckgzavvrlb.supabase.co">
 <title>سندك الطبي</title>
 <meta name="description" content="سندك الطبي — الخدمات الطبية بين يديك. ابحث عن مرفقك الصحي، اطّلع على مواعيد الأطباء، واحجز مباشرة أونلاين.">
 <link rel="icon" type="image/png" href="img/logo.png">
@@ -86,15 +87,15 @@
         </div>
       </div>
 
-      <div class="card card-pad feature-card">
+      <a class="card card-pad feature-card" href="camps.html" style="text-decoration:none;color:inherit;">
         <div class="section-icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M19 14V6a2 2 0 00-2-2H7a2 2 0 00-2 2v8m14 0l1.5 5.5a1 1 0 01-1 1.5H4.5a1 1 0 01-1-1.5L5 14m14 0H5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
         </div>
         <div>
           <h3>مخيمات طبية</h3>
-          <p>سجّل في المخيمات والحملات الطبية القريبة منك مباشرة من التطبيق.</p>
+          <p>سجّل في المخيمات والحملات الطبية القريبة منك مباشرة من الموقع.</p>
         </div>
-      </div>
+      </a>
     </div>
 
     <div class="cta-band mt-16">
@@ -114,38 +115,15 @@
         الصق رابط المرفق أو معرّفه هنا لفتح صفحته مباشرة.
       </p>
       <div class="row gap-8">
-        <input id="facilityLinkInput" class="field" style="margin:0;" placeholder="https://codeyemen.sytes.net/facility/…">
-        <button class="btn btn-filled" onclick="goToFacility()">فتح</button>
+        <input id="facilityLinkInput" class="field" style="margin:0;" placeholder="https://sndk-codey.onrender.com/facility/…">
+        <button class="btn btn-filled" id="goToFacilityBtn">فتح</button>
       </div>
     </div>
   </div>
 
   <footer class="site-footer">© سندك الطبي</footer>
 
-  <script>
-    function extractFacilityId(input) {
-      const trimmed = input.trim();
-      const match = trimmed.match(/facility\/([a-zA-Z0-9-]+)/);
-      if (match) return match[1];
-      // معرّف عارٍ بلا رابط كامل
-      if (/^[a-zA-Z0-9-]{8,}$/.test(trimmed)) return trimmed;
-      return null;
-    }
-    function sndkBasePath() {
-      // نظير الدالة نفسها في js/facility.js و404.html — القاعدة تختلف بين
-      // نطاقٍ مخصّص (جذر) وصفحات GitHub الافتراضية (تحت اسم الريبو).
-      var p = window.location.pathname;
-      return (p.indexOf('/sndk.app/') === 0 || p === '/sndk.app') ? '/sndk.app' : '';
-    }
-    function goToFacility() {
-      const value = document.getElementById('facilityLinkInput').value;
-      const id = extractFacilityId(value || '');
-      if (!id) {
-        alert('لم أتعرّف على رابط أو معرّف مرفق صالح.');
-        return;
-      }
-      window.location.href = sndkBasePath() + '/facility.html?id=' + encodeURIComponent(id);
-    }
-  </script>
+  <script src="js/routing.js"></script>
+  <script src="js/index.js"></script>
 </body>
 </html>

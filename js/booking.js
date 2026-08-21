@@ -1,7 +1,7 @@
 // تدفّق الحجز — نظير appointment_booking_screen.dart + booking_confirmation_sheet.dart
 // بالحرف: نفس الأفعال (get-schedule-availability, get-booking-eligibility,
 // start-phone-verification, verify-phone-code, create-appointment)، ونفس
-// ترتيب الخطوات وأسباب الرفض.
+// ترتيب الخطوات وأسباب الرفض. esc() من common.js.
 
 const SndkBooking = (() => {
   const DAY_LABELS_AR = ['س', 'ح', 'ن', 'ث', 'ر', 'خ', 'ج'];
@@ -62,7 +62,7 @@ const SndkBooking = (() => {
 
     const sheet = openModal(`
       <h3 class="title-md">اختر يوم الحجز</h3>
-      <p class="text-muted mt-8">${schedule.doctors ? schedule.doctors.name : ''}</p>
+      <p class="text-muted mt-8">${esc(schedule.doctors ? schedule.doctors.name : '')}</p>
       <div id="availBody" class="mt-16"><div class="row" style="justify-content:center;padding:32px 0;"><div class="spinner spinner-dark"></div></div></div>
     `);
 
@@ -74,7 +74,7 @@ const SndkBooking = (() => {
       });
     } catch (err) {
       sheet.querySelector('#availBody').innerHTML =
-        `<div class="banner banner-error">تعذّر تحميل التوفّر. ${err.message || ''}</div>`;
+        `<div class="banner banner-error">تعذّر تحميل التوفّر. ${esc(err.message || '')}</div>`;
       return;
     }
 
@@ -116,7 +116,7 @@ const SndkBooking = (() => {
         const classes = ['cal-day'];
         if (!info.is_bookable) classes.push('blocked');
         if (key === todayKey) classes.push('today');
-        cells += `<div class="${classes.join(' ')}" data-key="${key}" title="${info.is_bookable ? '' : (REASON_MESSAGES[info.reason] || '')}">${day}</div>`;
+        cells += `<div class="${classes.join(' ')}" data-key="${key}" title="${esc(info.is_bookable ? '' : (REASON_MESSAGES[info.reason] || ''))}">${day}</div>`;
       }
 
       const canPrev = monthIndex > 0;
@@ -178,8 +178,8 @@ const SndkBooking = (() => {
     const sheet = openModal(`
       <h3 class="title-md">تأكيد الحجز</h3>
       <div class="card card-pad mt-12" style="background:var(--surface-2);">
-        <div>${schedule.doctors ? schedule.doctors.name : ''}</div>
-        <div class="text-muted mt-8">${day.dateObj.toLocaleDateString('ar', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+        <div>${esc(schedule.doctors ? schedule.doctors.name : '')}</div>
+        <div class="text-muted mt-8">${esc(day.dateObj.toLocaleDateString('ar', { weekday: 'long', day: 'numeric', month: 'long' }))}</div>
       </div>
       <div id="confirmBody" class="mt-16"><div class="row" style="justify-content:center;padding:24px 0;"><div class="spinner spinner-dark"></div></div></div>
     `);
@@ -197,12 +197,12 @@ const SndkBooking = (() => {
 
     sheet.querySelector('#confirmBody').innerHTML = `
       <label class="field-label">اسم المريض</label>
-      <input class="field" id="patientName" value="${user.full_name || ''}" placeholder="الاسم الكامل">
+      <input class="field" id="patientName" value="${esc(user.full_name || '')}" placeholder="الاسم الكامل">
 
       <label class="field-label">رقم الهاتف</label>
       ${verifiedPhone
-        ? `<input class="field" id="patientPhone" value="${verifiedPhone}" disabled style="direction:ltr;text-align:right;">`
-        : `<input class="field" id="patientPhone" placeholder="7XXXXXXXX" value="${user.phone_number || ''}">`}
+        ? `<input class="field" id="patientPhone" value="${esc(verifiedPhone)}" disabled style="direction:ltr;text-align:right;">`
+        : `<input class="field" id="patientPhone" placeholder="7XXXXXXXX" value="${esc(user.phone_number || '')}">`}
 
       ${maxCompanions > 0 ? `
         <label class="field-label">مرافقون (اختياري، حتى ${maxCompanions})</label>
@@ -269,7 +269,17 @@ const SndkBooking = (() => {
           idempotency_key: idempotencyKey,
         }, { accessToken: await SndkAuth.validAccessToken() });
 
-        showSuccess(appointment);
+        // ═══ الدفع قبل «تمّ الحجز» — نظير appointment_booking_screen.dart ═══
+        //
+        // مقعدٌ يتطلّب رسماً يبقى `pending` في القاعدة إلى أن يُدفع (أو تنقضي
+        // مهلته فيُتاح لغيره) — القاعدة تفرض هذا بصرف النظر عمّا تعرضه الشاشة.
+        // فعرض «تمّ الحجز بنجاح» هنا كذبٌ يوقعه العميل، لا تجميلاً: يُفتح مساره
+        // الحقيقي أولاً، ولا تظهر شاشة النجاح العامة إلا حين لا رسم على الحجز.
+        if (appointment.payment && appointment.payment.required === true) {
+          openPaymentSheet(appointment);
+        } else {
+          showSuccess(appointment);
+        }
       } catch (err) {
         if (err.code === 'PHONE_VERIFICATION_REQUIRED' && allowVerificationPrompt) {
           openPhoneVerification(patientPhone, async () => {
@@ -279,7 +289,7 @@ const SndkBooking = (() => {
           btn.textContent = 'تأكيد الحجز';
           return;
         }
-        errorEl.innerHTML = `<div class="banner banner-error">${err.message}</div>`;
+        errorEl.innerHTML = `<div class="banner banner-error">${esc(err.message)}</div>`;
         btn.disabled = false;
         btn.textContent = 'تأكيد الحجز';
       }
@@ -290,10 +300,10 @@ const SndkBooking = (() => {
 
   // ─────────────────────────── توثيق الهاتف ───────────────────────────
 
-  function openPhoneVerification(phone, onVerified) {
+  function openPhoneVerification(phone, onVerified, purpose = 'account') {
     const sheet = openModal(`
       <h3 class="title-md">توثيق رقم الهاتف</h3>
-      <p class="text-muted mt-8">السياسة تشترط رقماً موثَّقاً — أرسلنا رمزاً إلى ${phone}.</p>
+      <p class="text-muted mt-8">السياسة تشترط رقماً موثَّقاً — أرسلنا رمزاً إلى ${esc(phone)}.</p>
       <div id="verifyBody" class="mt-16">
         <button class="btn btn-filled btn-block" id="sendCodeBtn">إرسال رمز التحقق</button>
         <div id="verifyError" class="mt-12"></div>
@@ -305,7 +315,7 @@ const SndkBooking = (() => {
       errorEl.innerHTML = '';
       try {
         await SndkApi.postData('start-phone-verification', {
-          phone, purpose: 'account', locale: 'ar',
+          phone, purpose, locale: 'ar',
         }, { accessToken: await SndkAuth.validAccessToken() });
 
         sheet.querySelector('#verifyBody').innerHTML = `
@@ -318,17 +328,17 @@ const SndkBooking = (() => {
           const code = sheet.querySelector('#otpInput').value.trim();
           const err2 = sheet.querySelector('#verifyError2');
           try {
-            await SndkApi.postData('verify-phone-code', {
-              phone, code, purpose: 'account',
+            const result = await SndkApi.postData('verify-phone-code', {
+              phone, code, purpose, want_grant: purpose === 'camp',
             }, { accessToken: await SndkAuth.validAccessToken() });
             closeModal();
-            onVerified();
+            onVerified(result && result.grant_token);
           } catch (err) {
-            err2.innerHTML = `<div class="banner banner-error mt-8">${err.message}</div>`;
+            err2.innerHTML = `<div class="banner banner-error mt-8">${esc(err.message)}</div>`;
           }
         });
       } catch (err) {
-        errorEl.innerHTML = `<div class="banner banner-error">${err.message}</div>`;
+        errorEl.innerHTML = `<div class="banner banner-error">${esc(err.message)}</div>`;
       }
     }
     sheet.querySelector('#sendCodeBtn').addEventListener('click', sendCode);
@@ -336,18 +346,134 @@ const SndkBooking = (() => {
 
   function showSuccess(appointment) {
     const token = appointment && appointment.queue_number;
-    openModal(`
+    const sheet = openModal(`
       <div class="state-box">
         <svg width="56" height="56" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#56AB2F" stroke-width="2"/><path d="M8 12l3 3 5-6" stroke="#56AB2F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <div class="title-md mt-12" style="color:var(--text);">تمّ الحجز بنجاح</div>
-        ${token ? `<p class="text-muted mt-8">رقم دورك: <strong>${token}</strong></p>` : ''}
+        ${token ? `<p class="text-muted mt-8">رقم دورك: <strong>${esc(token)}</strong></p>` : ''}
         <p class="text-muted mt-8">يمكنك متابعة حجوزاتك من تطبيق سندك الطبي.</p>
-        <button class="btn btn-filled btn-block mt-16" onclick="SndkBookingClose()">تم</button>
+        <button class="btn btn-filled btn-block mt-16" id="bookingDoneBtn">تم</button>
       </div>
     `);
+    sheet.querySelector('#bookingDoneBtn').addEventListener('click', closeModal);
   }
 
-  window.SndkBookingClose = closeModal;
+  // ─────────────────────────── دفع رسم الحجز ───────────────────────────
 
-  return { start, closeModal };
+  /// نظير BookingPaymentSheet بالحرف: المقعد محجوز بالفعل بحالة `pending`
+  /// ومهلته تجري — لا ينتظر المستخدم أن يحجز، بل حجز ثم يدفع، والمهلة تُتيح
+  /// مقعده لغيره إن لم يدفع. الحالة النهائية تُقرأ من `payment-status` وحده،
+  /// لا من عودة المستخدم من صفحة البوّابة — عودته ليست دليل دفع.
+  function openPaymentSheet(appointment) {
+    const paymentIdempotencyKey = uid();
+    let phase = 'idle'; // idle | opening | waiting | paid | failed | timedOut
+    let reference = null;
+    let lastError = null;
+
+    const sheet = openModal(`
+      <h3 class="title-md">إتمام الدفع</h3>
+      <div class="card card-pad mt-12" style="background:var(--surface-2);">
+        <div class="row spread"><span class="text-muted">المبلغ المستحق</span>
+          <strong>${esc(Number(appointment.payment.amount).toFixed(2))} ${esc(appointment.payment.currency || '')}</strong>
+        </div>
+      </div>
+      <div id="payBody" class="mt-16"></div>
+    `);
+
+    function redraw() {
+      const body = sheet.querySelector('#payBody');
+      if (!body) return; // أُغلقت الورقة — لا داعي لمتابعة الرسم.
+
+      if (phase === 'idle' || phase === 'failed') {
+        body.innerHTML = `
+          ${phase === 'failed' ? `<div class="banner banner-error">${esc(lastError || 'تعذّر إتمام الدفع.')}</div>` : ''}
+          <div class="banner banner-warn">مقعدك محجوز مؤقتاً — يُتاح لغيرك إن لم يكتمل الدفع خلال المهلة.</div>
+          <button class="btn btn-filled btn-block" id="payNowBtn">ادفع الآن</button>
+          <button class="btn btn-outline btn-block mt-8" id="payLaterBtn">أدفع لاحقاً</button>
+        `;
+        body.querySelector('#payNowBtn').addEventListener('click', startPayment);
+        body.querySelector('#payLaterBtn').addEventListener('click', closeModal);
+      } else if (phase === 'opening') {
+        body.innerHTML = `<div class="row" style="justify-content:center;padding:24px 0;"><div class="spinner spinner-dark"></div></div>
+          <p class="text-muted" style="text-align:center;">جارٍ فتح بوّابة الدفع…</p>`;
+      } else if (phase === 'waiting') {
+        body.innerHTML = `
+          <div class="row" style="justify-content:center;padding:24px 0;"><div class="spinner spinner-dark"></div></div>
+          <p class="text-muted" style="text-align:center;">بانتظار نتيجة الدفع…</p>
+          <p class="text-muted" style="text-align:center;font-size:12px;">أكمل العملية في التبويب الذي فتحناه لك، ثم عد إلى هنا.</p>
+          ${reference ? `<p class="text-muted mt-8" style="text-align:center;">المرجع: ${esc(reference)}</p>` : ''}
+        `;
+      } else if (phase === 'paid') {
+        const token = appointment && appointment.queue_number;
+        body.innerHTML = `
+          <div class="state-box">
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#56AB2F" stroke-width="2"/><path d="M8 12l3 3 5-6" stroke="#56AB2F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <div class="title-md mt-12" style="color:var(--text);">تمّ الدفع وتأكيد الحجز</div>
+            ${token ? `<p class="text-muted mt-8">رقم دورك: <strong>${esc(token)}</strong></p>` : ''}
+            <button class="btn btn-filled btn-block mt-16" id="payDoneBtn">تم</button>
+          </div>
+        `;
+        body.querySelector('#payDoneBtn').addEventListener('click', closeModal);
+      } else if (phase === 'timedOut') {
+        body.innerHTML = `
+          <div class="banner banner-warn">لم تصلنا نتيجة الدفع بعد — قد تكون قد تمّت فعلاً. راجع تطبيق سندك الطبي للتأكّد.</div>
+          <button class="btn btn-filled btn-block" id="payDoneBtn">تم</button>
+        `;
+        body.querySelector('#payDoneBtn').addEventListener('click', closeModal);
+      }
+    }
+
+    async function startPayment() {
+      phase = 'opening';
+      redraw();
+
+      let intent;
+      try {
+        intent = await SndkPayment.openPayment(appointment.id, paymentIdempotencyKey);
+      } catch (err) {
+        phase = 'failed';
+        lastError = err.message;
+        redraw();
+        return;
+      }
+
+      reference = intent.reference;
+
+      // نيّةٌ عادت من مفتاح عدم تكرارٍ سابق (استئناف) لا رابط توجيه معها —
+      // لا يُعاد نداء البوّابة، يُنتقل للمتابعة مباشرة كما في التطبيق تماماً.
+      if (intent.redirect_url) {
+        const opened = window.open(intent.redirect_url, '_blank', 'noopener');
+        if (!opened) {
+          phase = 'failed';
+          lastError = 'تعذّر فتح صفحة الدفع — تحقّق من إعدادات حظر النوافذ المنبثقة.';
+          redraw();
+          return;
+        }
+      }
+
+      phase = 'waiting';
+      redraw();
+
+      SndkPayment.watch(reference, (fresh) => {
+        if (fresh === null) {
+          phase = 'timedOut';
+          redraw();
+          return;
+        }
+        if (PAYMENT_SETTLED.has(fresh.status)) {
+          phase = 'paid';
+          redraw();
+        } else if (!PAYMENT_IN_FLIGHT.has(fresh.status)) {
+          phase = 'failed';
+          lastError = null;
+          redraw();
+        }
+        // ما زالت جارية: تُترَك على "waiting" حتى الجولة التالية.
+      });
+    }
+
+    redraw();
+  }
+
+  return { start, closeModal, openPhoneVerification, openModal };
 })();

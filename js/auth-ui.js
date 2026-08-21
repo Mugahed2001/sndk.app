@@ -79,7 +79,7 @@ const SndkAuthUI = (() => {
           overlay.remove();
           if (onSuccess) onSuccess();
         } catch (err) {
-          errorEl.innerHTML = `<div class="banner banner-error mt-8">${err.message || 'تعذّر الدخول.'}</div>`;
+          errorEl.innerHTML = `<div class="banner banner-error mt-8">${esc(err.message || 'تعذّر الدخول.')}</div>`;
           btn.disabled = false;
           btn.textContent = mode === 'login' ? 'دخول' : 'إنشاء الحساب';
         }

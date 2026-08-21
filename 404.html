@@ -2,27 +2,11 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'">
 <title>سندك الطبي</title>
-<script>
-  // GitHub Pages استضافة ملفات ساكنة بحتة — لا توجيه خادم لمسار مثل
-  // /facility/<uuid>. هذه هي الحيلة المعروفة: أي مسار غير موجود يصل هنا،
-  // فنحوّله فوراً إلى facility.html?id=<uuid>، وتلك الصفحة تُعيد المسار
-  // الجميل إلى شريط العنوان بـ history.replaceState بعد أن تقرأ المعرّف —
-  // فيرى المستخدم النهائي /facility/<uuid> كما كان، بقفزة واحدة غير محسوسة.
-  (function () {
-    var path = window.location.pathname;
-    // القاعدة تختلف بين نطاقٍ مخصّص (جذرٌ فعلي) وصفحات GitHub الافتراضية
-    // (تحت `/sndk.app/` — اسم الريبو). كلا الشكلين يعمل بلا CNAME حالياً.
-    var base = (path.indexOf('/sndk.app/') === 0 || path === '/sndk.app') ? '/sndk.app' : '';
-    var rest = path.slice(base.length);
-    var match = rest.match(/^\/facility\/([a-zA-Z0-9-]+)\/?$/);
-    if (match) {
-      window.location.replace(base + '/facility.html?id=' + encodeURIComponent(match[1]) + '&pretty=1');
-      return;
-    }
-    window.location.replace(base + '/');
-  })();
-</script>
 </head>
-<body></body>
+<body>
+<script src="js/routing.js"></script>
+<script src="js/404-redirect.js"></script>
+</body>
 </html>
