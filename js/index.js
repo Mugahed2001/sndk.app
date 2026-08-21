@@ -1,5 +1,12 @@
 // الصفحة الرئيسية — فتح صفحة مرفق من رابط أو معرّف يلصقه الزائر.
-// sndkBasePath من routing.js.
+// sndkBasePath من routing.js، esc من common.js.
+
+function renderTopbar() {
+  document.getElementById('topbarActions').innerHTML = SndkAuth.isLoggedIn()
+    ? `<span class="text-muted" style="font-size:13px;">${esc((SndkAuth.currentUser() || {}).full_name || '')}</span>`
+    : '';
+}
+renderTopbar();
 
 function extractFacilityId(input) {
   const trimmed = input.trim();

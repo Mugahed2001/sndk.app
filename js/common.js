@@ -14,6 +14,29 @@ function cleanPhone(p) {
   return (p || '').replace(/\s+/g, '');
 }
 
+/// ورقة سفلية مشتركة — نظير openModal/closeModal الخاصّتين سابقاً بـ
+/// SndkBooking وحدها. صارتا هنا كي تستعملهما صفحاتٌ لا تحمّل booking.js
+/// أصلاً (القائمة الجانبية مثلاً) بلا تكرار نفس المنطق. عنصرٌ واحدٌ مفتوحٌ
+/// في كل لحظة — فتح ثانٍ يُغلق الأول، كنافذة نظام حقيقية.
+let sndkOverlayEl = null;
+function sndkCloseModal() {
+  if (sndkOverlayEl) {
+    sndkOverlayEl.remove();
+    sndkOverlayEl = null;
+  }
+}
+function sndkOpenModal(innerHtml) {
+  sndkCloseModal();
+  sndkOverlayEl = document.createElement('div');
+  sndkOverlayEl.className = 'modal-overlay';
+  sndkOverlayEl.innerHTML = `<div class="modal-sheet"><div class="modal-handle"></div>${innerHtml}</div>`;
+  sndkOverlayEl.addEventListener('click', (e) => {
+    if (e.target === sndkOverlayEl) sndkCloseModal();
+  });
+  document.body.appendChild(sndkOverlayEl);
+  return sndkOverlayEl.querySelector('.modal-sheet');
+}
+
 /// نظير زر المشاركة في التطبيق — Web Share API حيث تتوفّر (الجوّال غالباً)،
 /// ونسخٌ للحافظة كبديل (الحاسوب).
 function shareLink(url, title) {
