@@ -31,26 +31,10 @@ const SndkBooking = (() => {
     });
   }
 
-  let overlayEl = null;
-
-  function closeModal() {
-    if (overlayEl) {
-      overlayEl.remove();
-      overlayEl = null;
-    }
-  }
-
-  function openModal(innerHtml) {
-    closeModal();
-    overlayEl = document.createElement('div');
-    overlayEl.className = 'modal-overlay';
-    overlayEl.innerHTML = `<div class="modal-sheet"><div class="modal-handle"></div>${innerHtml}</div>`;
-    overlayEl.addEventListener('click', (e) => {
-      if (e.target === overlayEl) closeModal();
-    });
-    document.body.appendChild(overlayEl);
-    return overlayEl.querySelector('.modal-sheet');
-  }
+  // openModal/closeModal الآن sndkOpenModal/sndkCloseModal من common.js —
+  // مشتركتان مع أي صفحة تحتاج ورقة سفلية بلا تحميل هذا الملف كله.
+  const closeModal = sndkCloseModal;
+  const openModal = sndkOpenModal;
 
   // ─────────────────────────── لوحة الأيام ───────────────────────────
 
