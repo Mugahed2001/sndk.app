@@ -45,19 +45,19 @@ function openNavDrawer() {
     </div>
 
     <div class="section-title" style="margin:20px 0 8px;">تصفّح</div>
-    <button class="btn btn-outline btn-block mb-12" id="navFacilitiesBtn" style="justify-content:flex-start;">🏥 المرافق الصحية</button>
-    <button class="btn btn-outline btn-block mb-12" id="navDoctorsBtn" style="justify-content:flex-start;">👨‍⚕️ الأطباء</button>
-    <button class="btn btn-outline btn-block mb-12" id="navSpecialtiesBtn" style="justify-content:flex-start;">🩺 التخصصات</button>
-    <button class="btn btn-outline btn-block mb-12" id="navCampsBtn" style="justify-content:flex-start;">🏕️ المخيمات الطبية</button>
-    <button class="btn btn-outline btn-block mb-12" id="navBookingsBtn" style="justify-content:flex-start;">📅 مواعيدي</button>
+    <button class="btn btn-outline btn-block mb-12" id="navFacilitiesBtn" style="justify-content:flex-start;">${SNDK_FALLBACK_ICONS.hospital(17)} المرافق الصحية</button>
+    <button class="btn btn-outline btn-block mb-12" id="navDoctorsBtn" style="justify-content:flex-start;">${SNDK_FALLBACK_ICONS.person(17)} الأطباء</button>
+    <button class="btn btn-outline btn-block mb-12" id="navSpecialtiesBtn" style="justify-content:flex-start;">${SNDK_ICONS.grid(17)} التخصصات</button>
+    <button class="btn btn-outline btn-block mb-12" id="navCampsBtn" style="justify-content:flex-start;">${SNDK_FALLBACK_ICONS.camp(17)} المخيمات الطبية</button>
+    <button class="btn btn-outline btn-block mb-12" id="navBookingsBtn" style="justify-content:flex-start;">${SNDK_ICONS.calendar(17)} مواعيدي</button>
 
     <div class="section-title" style="margin:20px 0 8px;">الحساب</div>
     ${loggedIn
-      ? `<button class="btn btn-outline btn-block mb-12" id="navLogoutBtn" style="justify-content:flex-start;">🚪 تسجيل الخروج</button>`
-      : `<button class="btn btn-filled btn-block mb-12" id="navLoginBtn" style="justify-content:flex-start;">🔑 تسجيل الدخول / إنشاء حساب</button>`}
+      ? `<button class="btn btn-outline btn-block mb-12" id="navLogoutBtn" style="justify-content:flex-start;">${SNDK_ICONS.logout(17)} تسجيل الخروج</button>`
+      : `<button class="btn btn-filled btn-block mb-12" id="navLoginBtn" style="justify-content:flex-start;">${SNDK_ICONS.login(17)} تسجيل الدخول / إنشاء حساب</button>`}
 
     <a class="btn btn-outline btn-block mt-8" style="justify-content:flex-start;" href="${esc(PLAY_STORE_URL)}" target="_blank" rel="noopener">
-      📲 حمّل تطبيق سندك الطبي
+      ${SNDK_ICONS.download(17)} حمّل تطبيق سندك الطبي
     </a>
   `);
 
@@ -99,7 +99,7 @@ function openNavDrawer() {
 function showBookingsNudge() {
   const sheet = sndkOpenModal(`
     <div class="state-box">
-      <div style="font-size:40px;">📱</div>
+      <div style="color:var(--primary);">${SNDK_ICONS.smartphone(40)}</div>
       <div class="title-md mt-12" style="color:var(--text);">تابع حجوزاتك من التطبيق</div>
       <p class="text-muted mt-8">متابعة المواعيد وقائمة الانتظار وإشعاراتها متاحة في تطبيق سندك الطبي.</p>
       <a class="btn btn-filled btn-block mt-16" href="${esc(PLAY_STORE_URL)}" target="_blank" rel="noopener">حمّله من Google Play</a>

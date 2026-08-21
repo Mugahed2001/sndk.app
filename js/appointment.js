@@ -115,7 +115,7 @@ function render(facility, schedule, canBook) {
               ${period ? `<span class="chip" style="background:rgba(15,163,189,0.12);color:var(--secondary-teal);">${esc(period)}</span>` : ''}
               ${time ? `<span class="chip" style="background:rgba(102,126,234,0.12);color:var(--accent-purple);">${esc(time)}</span>` : ''}
             </div>
-            <div class="text-muted mt-8">📅 ${esc(days || 'لم يحدد')}</div>
+            <div class="row gap-8 mt-8">${SNDK_ICONS.calendar(14)}<span class="text-muted">${esc(days || 'لم يحدد')}</span></div>
           </div>
         </div>
         ${canBook
@@ -165,7 +165,7 @@ function renderVerifySection() {
     el.innerHTML = `
       <div class="card card-pad" style="background:rgba(86,171,47,0.08);">
         <div class="row gap-8">
-          <span style="color:var(--success);">✓</span>
+          <span style="color:var(--success);">${SNDK_ICONS.check(15)}</span>
           <strong>رقمك موثَّق${user.phone_number ? `: ${esc(user.phone_number)}` : ''}</strong>
         </div>
       </div>

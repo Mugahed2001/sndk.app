@@ -87,11 +87,11 @@ async function render(camp) {
 
       <div id="seatsPanel" class="mt-16"><div class="skeleton" style="height:90px;"></div></div>
 
-      ${detailTile('📅', 'التواريخ', campDateRange(camp))}
-      ${camp.daily_start_time ? detailTile('⏰', 'أوقات الدوام اليومي', `${camp.daily_start_time}${camp.daily_end_time ? ' — ' + camp.daily_end_time : ''}`) : ''}
-      ${campCity(camp) ? detailTile('🏙️', 'المدينة', campCity(camp)) : ''}
-      ${camp.address ? detailTile('📍', 'العنوان', camp.address) : ''}
-      ${detailTile(campIsFree(camp) ? '🤝' : '💳', 'الرسوم', campIsFree(camp) ? 'مجاني' : String(camp.fee ?? ''))}
+      ${detailTile(SNDK_ICONS.calendar(16), 'التواريخ', campDateRange(camp))}
+      ${camp.daily_start_time ? detailTile(SNDK_ICONS.clock(16), 'أوقات الدوام اليومي', `${camp.daily_start_time}${camp.daily_end_time ? ' — ' + camp.daily_end_time : ''}`) : ''}
+      ${campCity(camp) ? detailTile(SNDK_ICONS.building(16), 'المدينة', campCity(camp)) : ''}
+      ${camp.address ? detailTile(SNDK_ICONS.pin(16), 'العنوان', camp.address) : ''}
+      ${detailTile(campIsFree(camp) ? SNDK_ICONS.gift(16) : SNDK_ICONS.card(16), 'الرسوم', campIsFree(camp) ? 'مجاني' : String(camp.fee ?? ''))}
 
       ${specialties.length ? `
         <div class="section-title">التخصصات</div>
@@ -106,7 +106,7 @@ async function render(camp) {
       ${camp.phones && camp.phones.length ? `
         <div class="section-title">للتواصل</div>
         <div class="row wrap gap-8 mb-12">
-          ${camp.phones.map((p) => `<a class="chip" style="background:rgba(10,123,147,0.12);color:var(--primary);" href="tel:${esc(cleanPhone(p))}">📞 ${esc(p)}</a>`).join('')}
+          ${camp.phones.map((p) => `<a class="chip" style="background:rgba(10,123,147,0.12);color:var(--primary);" href="tel:${esc(cleanPhone(p))}">${SNDK_ICONS.phone(13)} ${esc(p)}</a>`).join('')}
         </div>` : ''}
 
       <div id="registerArea" class="mt-16"></div>
@@ -156,7 +156,7 @@ function renderSeatsPanel(availability, failed) {
   if (!availability.capacity_total) {
     el.innerHTML = `
       <div class="card card-pad" style="background:rgba(86,171,47,0.08);">
-        <div class="row gap-8"><span style="color:var(--success);">∞</span><strong>سعة مفتوحة</strong></div>
+        <div class="row gap-8"><span style="color:var(--success);">${SNDK_ICONS.infinity(16)}</span><strong>سعة مفتوحة</strong></div>
         <div class="text-muted mt-8">عدد المسجَّلين حتى الآن: ${esc(String(availability.registrations_count))}</div>
       </div>
     `;
@@ -189,7 +189,7 @@ function renderRegisterArea(camp, availability, failed) {
   const el = document.getElementById('registerArea');
 
   if (!campRequiresRegistration(camp)) {
-    el.innerHTML = notice('ℹ️', 'لا حاجة للتسجيل المسبق في هذا المخيم.', SNDK_HEX.info);
+    el.innerHTML = notice(SNDK_ICONS.check(15, SNDK_HEX.info), 'لا حاجة للتسجيل المسبق في هذا المخيم.', SNDK_HEX.info);
     return;
   }
 
@@ -197,13 +197,13 @@ function renderRegisterArea(camp, availability, failed) {
     const text = availability
       ? (CAMP_REASON_MESSAGES[availability.reason] || 'التسجيل غير متاح حالياً.')
       : (failed ? 'تعذّر التحقق من إتاحة المقاعد.' : 'جارٍ التحقق من الإتاحة…');
-    el.innerHTML = notice(failed ? '📶' : '🚫', text, SNDK_HEX.error);
+    el.innerHTML = notice(failed ? SNDK_ICONS.offline(15, SNDK_HEX.error) : SNDK_ICONS.blocked(15, SNDK_HEX.error), text, SNDK_HEX.error);
     return;
   }
 
   if (!campAllowsGuest(camp) && !SndkAuth.isLoggedIn()) {
     el.innerHTML = `
-      ${notice('🔒', 'هذا المخيم يتطلّب حساباً للتسجيل.', SNDK_HEX.warning)}
+      ${notice(SNDK_ICONS.lock(15, SNDK_HEX.warning), 'هذا المخيم يتطلّب حساباً للتسجيل.', SNDK_HEX.warning)}
       <button class="btn btn-filled btn-block mt-12" id="campLoginBtn">تسجيل الدخول</button>
     `;
     document.getElementById('campLoginBtn').addEventListener('click', () => {
@@ -253,7 +253,7 @@ function openRegisterForm(camp, availability, initial) {
     <label class="field-label">رقم الهاتف</label>
     <input class="field" id="campPhone" value="${esc(state.phone)}" placeholder="7XXXXXXXX"
            style="direction:ltr;text-align:right;" ${state.grantToken ? 'disabled' : ''}>
-    ${state.grantToken ? '<p class="text-muted mt-8" style="margin-top:-8px;">✓ رقمٌ موثَّق لهذا التسجيل</p>' : ''}
+    ${state.grantToken ? `<p class="text-muted mt-8" style="margin-top:-8px;">${SNDK_ICONS.check(13, SNDK_HEX.success)} رقمٌ موثَّق لهذا التسجيل</p>` : ''}
 
     <div class="row gap-8">
       <div style="flex:1;">
