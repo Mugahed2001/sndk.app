@@ -50,6 +50,25 @@ async function main() {
 
   document.title = `${facility.name} — سندك الطبي`;
   render(facility, schedules);
+
+  // بوّابتا الحجز الإلكتروني — نظير BookingEntryButton بالحرف — لا تُنتظران
+  // قبل رسم الصفحة: نداء get-visitor-commercial-snapshot ثقيل نسبياً (يجلب
+  // لقطة المنصّة كاملة)، وتبويب «الأقسام والمواعيد» ليس الظاهر افتراضاً —
+  // فحجب الصفحة عليه يُبطئ أكثر ما يراه الزائر أولاً لأجل تبويبٍ قد لا يفتحه.
+  loadBookingGates(facility, schedules);
+}
+
+async function loadBookingGates(facility, schedules) {
+  const [bookingFacilityIds, facilityDoctorFlags] = await Promise.all([
+    fetchBookingFacilityIds(),
+    fetchFacilityDoctorFlags(facility.id, schedules.map((s) => s.doctor_id)),
+  ]);
+  const panel = document.getElementById('panel-schedules');
+  if (!panel) return; // غادر الزائر الصفحة قبل أن تصل النتيجة.
+  panel.innerHTML = renderSchedulesTab(schedules, facility, bookingFacilityIds, facilityDoctorFlags);
+  wireImageFallbacks(panel);
+  wireContactFallback(panel);
+  wireScheduleButtons(facility, schedules);
 }
 
 function renderTopbar() {
@@ -111,7 +130,7 @@ function render(facility, schedules) {
     <div class="container" style="padding-top:0;">
       <div class="tab-panel active" id="panel-info">${renderInfoTab(facility, phones, whatsapps)}</div>
       <div class="tab-panel" id="panel-doctors">${renderDoctorsTab(doctors)}</div>
-      <div class="tab-panel" id="panel-schedules">${renderSchedulesTab(schedules)}</div>
+      <div class="tab-panel" id="panel-schedules">${schedules.length ? '<div class="skeleton"></div><div class="skeleton"></div>' : '<div class="state-box">لا جدولات معلنة لهذا المرفق حالياً.</div>'}</div>
     </div>
     <footer class="site-footer">© سندك الطبي</footer>
   `;
@@ -197,7 +216,7 @@ function scheduleGroupLabel(s) {
   return 'غير محدد';
 }
 
-function renderSchedulesTab(schedules) {
+function renderSchedulesTab(schedules, facility, bookingFacilityIds, facilityDoctorFlags) {
   if (schedules.length === 0) return '<div class="state-box">لا جدولات معلنة لهذا المرفق حالياً.</div>';
 
   const groups = {};
@@ -209,28 +228,30 @@ function renderSchedulesTab(schedules) {
   return Object.entries(groups).map(([label, rows]) => `
     <div class="card card-pad mb-12">
       <div class="section-title" style="margin:0 0 12px;">${esc(label)}</div>
-      ${rows.map((s) => scheduleRow(s)).join('<div style="height:1px;background:var(--border);margin:12px 0;"></div>')}
+      ${rows.map((s) => scheduleRow(s, facility, scheduleAcceptsBooking(s, bookingFacilityIds, facilityDoctorFlags)))
+        .join('<div style="height:1px;background:var(--border);margin:12px 0;"></div>')}
     </div>
   `).join('');
 }
 
-function scheduleRow(s) {
+function scheduleRow(s, facility, canBook) {
   const period = PERIOD_LABELS[s.period] || s.period || '';
   const time = s.start_time && s.end_time ? `${s.start_time.slice(0, 5)} – ${s.end_time.slice(0, 5)}` : '';
   const days = workingDaysLabel(s.working_days) || 'لم يحدد';
   return `
-    <div class="row spread">
-      <div>
+    <div class="row spread" style="align-items:flex-start;">
+      <div style="flex:1;min-width:0;">
         <div style="font-weight:700;">${esc(s.doctors ? s.doctors.name : '')}</div>
         <div class="text-muted mt-8">${esc([period, time].filter(Boolean).join(' · '))}</div>
         <div class="text-muted mt-8">📅 ${esc(days)}</div>
+        ${canBook ? '' : facilityContactFallback(facility)}
       </div>
-      <div class="row gap-8">
+      <div class="row gap-8" style="flex-shrink:0;">
         <button class="btn btn-sm btn-outline share-schedule-btn" data-schedule-id="${esc(s.id)}"
                 title="مشاركة الموعد">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M13.5 6.5L17.5 10.5M4 20l1-4.5L14.5 6l3.5 3.5L9.5 19 5 20H4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
         </button>
-        <button class="btn btn-sm btn-filled book-btn" data-schedule-id="${esc(s.id)}">احجز</button>
+        ${canBook ? `<button class="btn btn-sm btn-filled book-btn" data-schedule-id="${esc(s.id)}">احجز</button>` : ''}
       </div>
     </div>
   `;
@@ -262,7 +283,11 @@ function wireInteractions(facility, schedules) {
     document.querySelector('.tab[data-tab="schedules"]').click();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
+}
 
+/// أزرار بطاقات الجدولة (احجز/مشاركة) — تُربَط بعد أن يملأ loadBookingGates
+/// تبويب المواعيد بمحتواه النهائي، لا مع بقية الصفحة.
+function wireScheduleButtons(facility, schedules) {
   document.querySelectorAll('.book-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const schedule = schedules.find((s) => s.id === btn.dataset.scheduleId);
