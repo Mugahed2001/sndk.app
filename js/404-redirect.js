@@ -23,6 +23,31 @@
     return;
   }
 
+  // نفس صيغة DeepLinkType.doctor في تطبيق فلاتر — معرّفٌ واحد.
+  const doctorMatch = rest.match(/^\/doctor\/([a-zA-Z0-9-]+)\/?$/);
+  if (doctorMatch) {
+    window.location.replace(`${base}/doctor.html?id=${encodeURIComponent(doctorMatch[1])}&pretty=1`);
+    return;
+  }
+
+  const facilitiesMatch = rest.match(/^\/facilities\/?$/);
+  if (facilitiesMatch) {
+    window.location.replace(`${base}/facilities.html`);
+    return;
+  }
+
+  const doctorsMatch = rest.match(/^\/doctors\/?$/);
+  if (doctorsMatch) {
+    window.location.replace(`${base}/doctors.html`);
+    return;
+  }
+
+  const specialtiesMatch = rest.match(/^\/specialties\/?$/);
+  if (specialtiesMatch) {
+    window.location.replace(`${base}/specialties.html`);
+    return;
+  }
+
   // معرّف واحد يكفي: get-clinic-schedules تدعم فلترة id مباشرة (أُصلحت في
   // نفس هذا الإصدار)، فلا حاجة إلى facility_id ثانٍ في الرابط — ويطابق هذا
   // بالحرف رابط المشاركة الذي يُنتجه تطبيق فلاتر (DeepLinkType.appointment).

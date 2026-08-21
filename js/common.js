@@ -128,6 +128,12 @@ function campSpecialties(camp) {
 /// كلاهما يعرض بطاقة موعد بنفس التصنيف.
 const PERIOD_LABELS = { morning: 'صباحية', evening: 'مسائية', fullDay: 'طوال اليوم' };
 
+const FACILITY_TYPE_LABELS = {
+  hospital: 'مستشفى', clinic: 'عيادة', medicalCenter: 'مركز طبي',
+  medical_center: 'مركز طبي', laboratory: 'مختبر', pharmacy: 'صيدلية',
+  radiology: 'أشعة', other: 'أخرى',
+};
+
 /// أسماء أيام العمل الكاملة — نظير `ScheduleDay` في التطبيق حرفياً: نفس
 /// ترقيم التطبيق (السبت = 0 … الجمعة = 6)، لا ترقيم JS القياسي (Date.getDay
 /// يبدأ بالأحد = 0). `schedule.working_days` يصل بهذا الترقيم من القاعدة.
@@ -214,6 +220,34 @@ async function fetchFacilityDoctorFlags(facilityId, doctorIds) {
   }
 }
 
+/// نظير fetchFacilityDoctorFlags بالطرفين معكوسين — طبيبٌ واحد عبر عدّة
+/// مرافق (صفحة ملف الطبيب)، بدل مرفقٍ واحد عبر عدّة أطباء (صفحة المرفق).
+/// المفتاح المُعاد facility_id لا doctor_id.
+async function fetchDoctorFacilityFlags(doctorId, facilityIds) {
+  const ids = [...new Set((facilityIds || []).filter(Boolean))];
+  if (ids.length === 0) return {};
+  try {
+    const base = window.SNDK_CONFIG.SUPABASE_URL.replace(/\/+$/, '');
+    const url = `${base}/rest/v1/facility_doctors`
+      + `?doctor_id=eq.${encodeURIComponent(doctorId)}`
+      + `&facility_id=in.(${ids.map(encodeURIComponent).join(',')})`
+      + `&select=facility_id,booking_enabled`;
+    const response = await fetch(url, {
+      headers: {
+        apikey: window.SNDK_CONFIG.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${window.SNDK_CONFIG.SUPABASE_ANON_KEY}`,
+      },
+    });
+    if (!response.ok) return {};
+    const rows = await response.json();
+    const flags = {};
+    for (const row of rows) flags[row.facility_id] = row.booking_enabled !== false;
+    return flags;
+  } catch (_) {
+    return {};
+  }
+}
+
 /// بديل زرّ الحجز حين يتعطّل — نظير FacilityContactActions بالحرف: زرّا
 /// اتصال/واتساب يُرسَمان دوماً، مقفلَين بتلميحٍ حين يغيب رقمهما لا مختفيَين.
 function facilityContactFallback(facility) {
@@ -234,6 +268,118 @@ function facilityContactFallback(facility) {
       </div>
     </div>
   `;
+}
+
+/// بطاقة جدولة واحدة — نظير ScheduleEntryCard بمرونته نفسها: showDoctor/
+/// showFacility بمعنى doctorName/facilityLabel هناك (null يعني «السياق
+/// يعرفها فلا تُعرض»). مشتركة بين facility.js وdoctor.js — أول موضعين
+/// يعرضان نفس البطاقة، فاستُخرجت هنا قبل أن يصير موضعاً ثالثاً.
+function scheduleCardHtml(s, facility, canBook, { showDoctor = true, showFacility = false, showSubFacility = false } = {}) {
+  const period = PERIOD_LABELS[s.period] || s.period || '';
+  const time = s.start_time && s.end_time ? `${s.start_time.slice(0, 5)} – ${s.end_time.slice(0, 5)}` : '';
+  const days = workingDaysLabel(s.working_days) || 'لم يحدد';
+  const subFacilityLabel = (s.sub_facility && s.sub_facility.name) || (s.specialties && s.specialties.arabic_name) || '';
+
+  return `
+    <div class="row spread" style="align-items:flex-start;">
+      <div style="flex:1;min-width:0;">
+        ${showDoctor && s.doctors ? `<div style="font-weight:700;">${esc(s.doctors.name)}</div>` : ''}
+        ${showFacility && facility ? `<a href="${sndkBasePath()}/facility/${esc(facility.id)}" class="text-muted mt-8" style="display:block;font-weight:600;color:var(--primary);">${esc(facility.name)}</a>` : ''}
+        ${showSubFacility && subFacilityLabel ? `<div class="text-muted mt-8">${esc(subFacilityLabel)}</div>` : ''}
+        <div class="text-muted mt-8">${esc([period, time].filter(Boolean).join(' · '))}</div>
+        <div class="text-muted mt-8">📅 ${esc(days)}</div>
+        ${canBook ? '' : facilityContactFallback(facility)}
+      </div>
+      <div class="row gap-8" style="flex-shrink:0;">
+        <button class="btn btn-sm btn-outline share-schedule-btn" data-schedule-id="${esc(s.id)}"
+                title="مشاركة الموعد">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M13.5 6.5L17.5 10.5M4 20l1-4.5L14.5 6l3.5 3.5L9.5 19 5 20H4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </button>
+        ${canBook ? `<button class="btn btn-sm btn-filled book-btn" data-schedule-id="${esc(s.id)}">احجز</button>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+/// بطاقة مرفق — مشتركة بين facilities.js وindex.js (أول موضعين يعرضانها).
+function facilityCardHtml(f) {
+  const phones = f.phones && f.phones.length ? f.phones : (f.phone ? [f.phone] : []);
+  const whatsapps = f.whatsapps && f.whatsapps.length ? f.whatsapps : (f.whatsapp ? [f.whatsapp] : []);
+  const location = [f.city, f.governorate].filter(Boolean).join('، ');
+
+  return `
+    <div class="card card-pad mb-12 facility-card-link" data-facility-id="${esc(f.id)}" style="cursor:pointer;">
+      <div class="row gap-12" style="align-items:flex-start;">
+        <div class="avatar">
+          ${f.image_url || f.logo_url
+            ? `<img src="${esc(f.image_url || f.logo_url)}" alt="" data-fallback-type="hospital">`
+            : SNDK_FALLBACK_ICONS.hospital()}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;">${esc(f.name)}</div>
+          <div class="row wrap gap-8 mt-8">
+            ${f.type ? `<span class="chip" style="background:${SNDK_HEX.secondaryTeal}1F;color:${SNDK_HEX.secondaryTeal};">${esc(FACILITY_TYPE_LABELS[f.type] || f.type)}</span>` : ''}
+            ${location ? `<span class="chip" style="background:${SNDK_HEX.primary}1F;color:${SNDK_HEX.primary};">${esc(location)}</span>` : ''}
+          </div>
+          <div class="row gap-8 mt-8">
+            ${phones[0] ? `<button class="btn btn-sm btn-outline facility-call-btn" data-phone="${esc(phones[0])}">📞 اتصال</button>` : ''}
+            ${whatsapps[0] ? `<button class="btn btn-sm btn-outline facility-wa-btn" data-whatsapp="${esc(whatsapps[0])}">💬 واتساب</button>` : ''}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function wireFacilityCards(root) {
+  root.querySelectorAll('.facility-card-link').forEach((card) => {
+    card.addEventListener('click', () => {
+      window.location.href = `${sndkBasePath()}/facility/${card.dataset.facilityId}`;
+    });
+  });
+  root.querySelectorAll('.facility-call-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.location.href = `tel:${cleanPhone(btn.dataset.phone)}`;
+    });
+  });
+  root.querySelectorAll('.facility-wa-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.open(`https://wa.me/${cleanPhone(btn.dataset.whatsapp)}`, '_blank');
+    });
+  });
+}
+
+/// بطاقة طبيب — مشتركة بين doctors.js وindex.js. specialtiesById خريطة
+/// اختيارية id→صفّ تخصص (لعرض اسمه دون نداءٍ إضافي لكل بطاقة).
+function doctorCardHtml(d, specialtiesById) {
+  const specialty = specialtiesById ? specialtiesById[d.specialty_id] : null;
+  const specialtyName = specialty ? (specialty.arabic_name || specialty.name) : '';
+  return `
+    <div class="card card-pad mb-12 doctor-card-link" data-doctor-id="${esc(d.id)}" style="cursor:pointer;">
+      <div class="row gap-12">
+        <div class="avatar" style="width:52px;height:52px;border-radius:50%;">
+          ${d.photo_url || d.image_url
+            ? `<img src="${esc(d.photo_url || d.image_url)}" alt="" data-fallback-type="person">`
+            : SNDK_FALLBACK_ICONS.person()}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;">${esc(d.name)}</div>
+          ${specialtyName ? `<div class="text-muted mt-8">${esc(specialtyName)}</div>` : ''}
+          ${d.rating > 0 ? `<div class="text-muted mt-8">⭐ ${esc(String(d.rating))} (${esc(String(d.reviews_count || 0))})</div>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function wireDoctorCards(root) {
+  root.querySelectorAll('.doctor-card-link').forEach((card) => {
+    card.addEventListener('click', () => {
+      window.location.href = `${sndkBasePath()}/doctor.html?id=${encodeURIComponent(card.dataset.doctorId)}`;
+    });
+  });
 }
 
 /// يُنادى بعد أي `innerHTML` يحمل `.contact-call-btn`/`.contact-wa-btn`.
