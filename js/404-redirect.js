@@ -23,12 +23,12 @@
     return;
   }
 
-  const apptMatch = rest.match(/^\/appointment\/([a-zA-Z0-9-]+)\/([a-zA-Z0-9-]+)\/?$/);
+  // معرّف واحد يكفي: get-clinic-schedules تدعم فلترة id مباشرة (أُصلحت في
+  // نفس هذا الإصدار)، فلا حاجة إلى facility_id ثانٍ في الرابط — ويطابق هذا
+  // بالحرف رابط المشاركة الذي يُنتجه تطبيق فلاتر (DeepLinkType.appointment).
+  const apptMatch = rest.match(/^\/appointment\/([a-zA-Z0-9-]+)\/?$/);
   if (apptMatch) {
-    window.location.replace(
-      `${base}/appointment.html?facility_id=${encodeURIComponent(apptMatch[1])}` +
-      `&schedule_id=${encodeURIComponent(apptMatch[2])}&pretty=1`,
-    );
+    window.location.replace(`${base}/appointment.html?schedule_id=${encodeURIComponent(apptMatch[1])}&pretty=1`);
     return;
   }
 

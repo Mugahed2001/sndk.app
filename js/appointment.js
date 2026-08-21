@@ -1,48 +1,44 @@
-// صفحة موعد فردي — وجهة زرّ المشاركة في facility.js. تعرض تفاصيل الموعد
-// وتتيح حجزه مباشرة (SndkBooking.start نفسها المستعملة في صفحة المرفق)،
-// وتضيف قسماً مستقلاً لتوثيق رقم الهاتف استباقياً — لا رد فعل على خطأ حجز،
-// بل إجراء يبدأه الزائر بنفسه. esc/cleanPhone/wireImageFallbacks/PERIOD_LABELS
-// /shareLink من common.js، sndkBasePath من routing.js، openPhoneVerification
-// من SndkBooking (booking.js).
+// صفحة موعد فردي — وجهة زرّ المشاركة في facility.js، ونظير
+// DeepLinkType.appointment في تطبيق فلاتر: نفس الرابط `/appointment/<schedule_id>`
+// يعمل من كلا المصدرين. تعرض تفاصيل الموعد وتتيح حجزه مباشرة (SndkBooking.start
+// نفسها المستعملة في صفحة المرفق)، وتضيف قسماً مستقلاً لتوثيق رقم الهاتف
+// استباقياً — لا رد فعل على خطأ حجز، بل إجراء يبدأه الزائر بنفسه.
+// esc/cleanPhone/wireImageFallbacks/PERIOD_LABELS/shareLink من common.js،
+// sndkBasePath من routing.js، openPhoneVerification من SndkBooking (booking.js).
 
 async function main() {
   const params = new URLSearchParams(window.location.search);
-  const facilityId = params.get('facility_id');
   const scheduleId = params.get('schedule_id');
 
-  if (params.get('pretty') === '1' && facilityId && scheduleId) {
-    window.history.replaceState(null, '', `${sndkBasePath()}/appointment/${facilityId}/${scheduleId}`);
+  if (params.get('pretty') === '1' && scheduleId) {
+    window.history.replaceState(null, '', `${sndkBasePath()}/appointment/${scheduleId}`);
   }
 
-  if (!facilityId || !scheduleId) {
-    document.getElementById('root').innerHTML = '<div class="state-box">رابط غير صالح — بيانات الموعد ناقصة.</div>';
+  if (!scheduleId) {
+    document.getElementById('root').innerHTML = '<div class="state-box">رابط غير صالح — لا معرّف موعد.</div>';
     return;
   }
 
   renderTopbar();
 
-  let facility, schedules;
+  let schedule;
   try {
-    const [facilityRows, scheduleRows] = await Promise.all([
-      SndkApi.getData('get-facilities', { query: { id: facilityId } }),
-      SndkApi.getData('get-clinic-schedules', { query: { facility_id: facilityId } }),
-    ]);
-    facility = Array.isArray(facilityRows) ? facilityRows[0] : null;
-    schedules = Array.isArray(scheduleRows) ? scheduleRows : [];
+    const rows = await SndkApi.getData('get-clinic-schedules', { query: { id: scheduleId } });
+    schedule = Array.isArray(rows) ? rows[0] : null;
   } catch (err) {
     document.getElementById('root').innerHTML =
       `<div class="state-box">تعذّر تحميل تفاصيل الموعد.<br>${esc(err.message)}</div>`;
     return;
   }
 
-  if (!facility || facility.is_active === false) {
-    document.getElementById('root').innerHTML = '<div class="state-box">هذا المرفق غير متاح حالياً.</div>';
+  if (!schedule) {
+    document.getElementById('root').innerHTML = '<div class="state-box">هذا الموعد لم يعد متاحاً.</div>';
     return;
   }
 
-  const schedule = schedules.find((s) => s.id === scheduleId);
-  if (!schedule) {
-    document.getElementById('root').innerHTML = '<div class="state-box">هذا الموعد لم يعد متاحاً.</div>';
+  const facility = schedule.facilities;
+  if (!facility || facility.is_active === false) {
+    document.getElementById('root').innerHTML = '<div class="state-box">هذا المرفق غير متاح حالياً.</div>';
     return;
   }
 
@@ -112,7 +108,7 @@ function render(facility, schedule) {
 
   wireImageFallbacks(document.getElementById('root'));
   document.getElementById('apptShareBtn').addEventListener('click', () => {
-    const url = `${window.location.origin}${sndkBasePath()}/appointment/${facility.id}/${schedule.id}`;
+    const url = `${window.location.origin}${sndkBasePath()}/appointment/${schedule.id}`;
     shareLink(url, doctor.name || 'موعد');
   });
   document.getElementById('apptBookBtn').addEventListener('click', () => {
