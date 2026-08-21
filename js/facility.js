@@ -225,7 +225,7 @@ function scheduleRow(s) {
       </div>
       <div class="row gap-8">
         <button class="btn btn-sm btn-outline share-schedule-btn" data-schedule-id="${esc(s.id)}"
-                data-facility-id="${esc(s.facility_id)}" title="مشاركة الموعد">
+                title="مشاركة الموعد">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M13.5 6.5L17.5 10.5M4 20l1-4.5L14.5 6l3.5 3.5L9.5 19 5 20H4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
         </button>
         <button class="btn btn-sm btn-filled book-btn" data-schedule-id="${esc(s.id)}">احجز</button>
@@ -272,7 +272,7 @@ function wireInteractions(facility, schedules) {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const schedule = schedules.find((s) => s.id === btn.dataset.scheduleId);
-      const url = `${window.location.origin}${sndkBasePath()}/appointment/${btn.dataset.facilityId}/${btn.dataset.scheduleId}`;
+      const url = `${window.location.origin}${sndkBasePath()}/appointment/${btn.dataset.scheduleId}`;
       shareLink(url, schedule && schedule.doctors ? schedule.doctors.name : 'موعد');
     });
   });
