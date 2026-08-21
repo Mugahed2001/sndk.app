@@ -199,7 +199,7 @@ function renderVerifySection() {
 function showVerifiedSuccess() {
   const sheet = SndkBooking.openModal(`
     <div class="state-box">
-      <svg width="56" height="56" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#56AB2F" stroke-width="2"/><path d="M8 12l3 3 5-6" stroke="#56AB2F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg width="56" height="56" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="var(--primary)" stroke-width="2"/><path d="M8 12l3 3 5-6" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <div class="title-md mt-12" style="color:var(--text);">تمّ توثيق رقمك بنجاح</div>
       <p class="text-muted mt-8">سيسرّع هذا كل حجز لاحق — بلا رمز تحقّق في كل مرة.</p>
       <button class="btn btn-filled btn-block mt-16" id="verifyDoneBtn">تم</button>
