@@ -43,7 +43,24 @@ async function main() {
   }
 
   document.title = `${schedule.doctors ? schedule.doctors.name : 'موعد'} — سندك الطبي`;
-  render(facility, schedule);
+  // يُرسَم متفائلاً بزرّ حجز فوراً — نداء بوّابتَي الاستحقاق ثقيلٌ نسبياً
+  // ولا يجوز أن يحجب أول ما يراه الزائر. إن ثبت أن الحجز معطَّل يُستبدَل الزرّ
+  // ببديل التواصل بعد قليل، لا قبله.
+  render(facility, schedule, true);
+  loadBookingGate(facility, schedule);
+}
+
+async function loadBookingGate(facility, schedule) {
+  const [bookingFacilityIds, facilityDoctorFlags] = await Promise.all([
+    fetchBookingFacilityIds(),
+    fetchFacilityDoctorFlags(facility.id, [schedule.doctor_id]),
+  ]);
+  if (scheduleAcceptsBooking(schedule, bookingFacilityIds, facilityDoctorFlags)) return;
+
+  const bookBtn = document.getElementById('apptBookBtn');
+  if (!bookBtn) return; // غادر الزائر الصفحة قبل أن تصل النتيجة.
+  bookBtn.outerHTML = facilityContactFallback(facility);
+  wireContactFallback(document.getElementById('root'));
 }
 
 function renderTopbar() {
@@ -63,7 +80,7 @@ function renderTopbar() {
   }));
 }
 
-function render(facility, schedule) {
+function render(facility, schedule, canBook) {
   const doctor = schedule.doctors || {};
   const period = PERIOD_LABELS[schedule.period] || schedule.period || '';
   const time = schedule.start_time && schedule.end_time
@@ -101,7 +118,9 @@ function render(facility, schedule) {
             <div class="text-muted mt-8">📅 ${esc(days || 'لم يحدد')}</div>
           </div>
         </div>
-        <button class="btn btn-filled btn-block mt-16" id="apptBookBtn">احجز الآن</button>
+        ${canBook
+          ? `<button class="btn btn-filled btn-block mt-16" id="apptBookBtn">احجز الآن</button>`
+          : facilityContactFallback(facility)}
       </div>
 
       <div id="verifySection" class="mt-16"></div>
@@ -109,11 +128,12 @@ function render(facility, schedule) {
   `;
 
   wireImageFallbacks(document.getElementById('root'));
+  wireContactFallback(document.getElementById('root'));
   document.getElementById('apptShareBtn').addEventListener('click', () => {
     const url = `${window.location.origin}${sndkBasePath()}/appointment/${schedule.id}`;
     shareLink(url, doctor.name || 'موعد');
   });
-  document.getElementById('apptBookBtn').addEventListener('click', () => {
+  document.getElementById('apptBookBtn')?.addEventListener('click', () => {
     SndkBooking.start(schedule, facility);
   });
 

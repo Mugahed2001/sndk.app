@@ -131,3 +131,94 @@ const SNDK_HEX = {
   info: '#17A2B8',
   textMuted: '#718096',
 };
+
+/// هل يقبل هذا الحجز الإلكتروني — نظير BookingEntryButton في التطبيق بالحرف
+/// (بوّابتاه الأوليان؛ الثالثة والرابعة — نشاط الجدولة وغياب الطبيب المؤقت —
+/// مفروضتان أصلاً داخل استعلام get-clinic-schedules نفسه، فلا جدولة معطَّلة
+/// تصل الواجهة أصلاً).
+///
+/// `bookingFacilityIds` من get-visitor-commercial-snapshot — `null`/`undefined`
+/// يعني «الخادم بلا رأي»، فيُسمَح افتراضياً (نفس تساهل acceptsBooking في
+/// visitor_commercial_service.dart). `facilityDoctorFlags` خريطة
+/// doctor_id → booking_enabled من facility_doctors — غياب الصفّ يعني مسموحاً
+/// أيضاً (نفس `row?['booking_enabled'] != false`).
+function scheduleAcceptsBooking(schedule, bookingFacilityIds, facilityDoctorFlags) {
+  if (bookingFacilityIds && !bookingFacilityIds.includes(schedule.facility_id)) return false;
+  if (schedule.sub_facility && schedule.sub_facility.booking_enabled === false) return false;
+  const flag = facilityDoctorFlags ? facilityDoctorFlags[schedule.doctor_id] : undefined;
+  if (flag === false) return false;
+  return true;
+}
+
+/// لقطة الاستحقاق التجاري — عامّة بلا توكن (verify_jwt=false)، نظير
+/// VisitorCommercialService.cachedSnapshot. فشلٌ هنا لا يوقف الصفحة: يُعامَل
+/// كـ«لا رأي» (null) فتبقى بوّابة facility_doctors وحدها فاعلة.
+async function fetchBookingFacilityIds() {
+  try {
+    const data = await SndkApi.getData('get-visitor-commercial-snapshot');
+    return Array.isArray(data && data.booking_facilities) ? data.booking_facilities : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// facility_doctors مقروءةٌ مباشرةً بمفتاح anon — لا عبر دالة حافة (الجدول
+/// الوحيد بين ما تحتاجه هذه الصفحة المسموح بقراءته مباشرة؛ الباقي محجوبٌ
+/// عمداً عن anon وله دوالّ get-* مخصّصة). استعلامٌ دفعي واحد لكل أطباء
+/// المرفق بدل نداء لكل جدولة.
+async function fetchFacilityDoctorFlags(facilityId, doctorIds) {
+  const ids = [...new Set((doctorIds || []).filter(Boolean))];
+  if (ids.length === 0) return {};
+  try {
+    const base = window.SNDK_CONFIG.SUPABASE_URL.replace(/\/+$/, '');
+    const url = `${base}/rest/v1/facility_doctors`
+      + `?facility_id=eq.${encodeURIComponent(facilityId)}`
+      + `&doctor_id=in.(${ids.map(encodeURIComponent).join(',')})`
+      + `&select=doctor_id,booking_enabled`;
+    const response = await fetch(url, {
+      headers: {
+        apikey: window.SNDK_CONFIG.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${window.SNDK_CONFIG.SUPABASE_ANON_KEY}`,
+      },
+    });
+    if (!response.ok) return {};
+    const rows = await response.json();
+    const flags = {};
+    for (const row of rows) flags[row.doctor_id] = row.booking_enabled !== false;
+    return flags;
+  } catch (_) {
+    return {};
+  }
+}
+
+/// بديل زرّ الحجز حين يتعطّل — نظير FacilityContactActions بالحرف: زرّا
+/// اتصال/واتساب يُرسَمان دوماً، مقفلَين بتلميحٍ حين يغيب رقمهما لا مختفيَين.
+function facilityContactFallback(facility) {
+  const phones = facility.phones && facility.phones.length ? facility.phones : (facility.phone ? [facility.phone] : []);
+  const whatsapps = facility.whatsapps && facility.whatsapps.length ? facility.whatsapps : (facility.whatsapp ? [facility.whatsapp] : []);
+  const phone = phones[0] || null;
+  const whatsapp = whatsapps[0] || null;
+  if (!phone && !whatsapp) return '';
+
+  return `
+    <div class="mt-8">
+      <p class="text-muted" style="font-size:12px;margin:0 0 8px;">الحجز الإلكتروني غير متاح لهذا الموعد — تواصل مع المرفق مباشرة.</p>
+      <div class="row gap-8">
+        <button class="btn btn-sm btn-filled contact-call-btn" style="flex:1;" data-phone="${esc(phone || '')}"
+                ${phone ? '' : 'disabled title="لا رقم اتصال مسجَّل"'}>📞 اتصال</button>
+        <button class="btn btn-sm btn-outline contact-wa-btn" style="flex:1;" data-whatsapp="${esc(whatsapp || '')}"
+                ${whatsapp ? '' : 'disabled title="لا رقم واتساب مسجَّل"'}>💬 واتساب</button>
+      </div>
+    </div>
+  `;
+}
+
+/// يُنادى بعد أي `innerHTML` يحمل `.contact-call-btn`/`.contact-wa-btn`.
+function wireContactFallback(root) {
+  (root || document).querySelectorAll('.contact-call-btn[data-phone]:not([disabled])').forEach((btn) => {
+    btn.addEventListener('click', () => { window.location.href = `tel:${cleanPhone(btn.dataset.phone)}`; });
+  });
+  (root || document).querySelectorAll('.contact-wa-btn[data-whatsapp]:not([disabled])').forEach((btn) => {
+    btn.addEventListener('click', () => { window.open(`https://wa.me/${cleanPhone(btn.dataset.whatsapp)}`, '_blank'); });
+  });
+}
