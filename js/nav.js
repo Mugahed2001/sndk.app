@@ -10,17 +10,16 @@ function mountNavToggle() {
   if (!bar || document.getElementById('navToggleBtn')) return;
 
   const btn = document.createElement('button');
-  btn.className = 'btn btn-sm btn-outline';
+  btn.className = 'btn btn-sm btn-outline nav-toggle-btn';
   btn.id = 'navToggleBtn';
   btn.title = 'القائمة';
   btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
   btn.addEventListener('click', openNavDrawer);
 
-  // قبل topbarActions — نفس ترتيب app_drawer.dart (يُفتح من أقصى الجهة
-  // المقابلة لعنوان الشاشة، لا من وسط أزرار الحساب).
-  const actions = document.getElementById('topbarActions');
-  if (actions) bar.insertBefore(btn, actions);
-  else bar.appendChild(btn);
+  // العمود الأول في شبكة topbar-inner ثلاثية الأعمدة — بداية السطر (اليمين
+  // في RTL)، والشعار يبقى مُمركَزاً في العمود الأوسط بصرف النظر عمّا هنا
+  // وعمّا في topbar-actions (عمود ثالث بعرضٍ مساوٍ لهذا تماماً).
+  bar.prepend(btn);
 }
 
 function openNavDrawer() {

@@ -63,11 +63,16 @@ button { font-family: inherit; }
   border-bottom: 1px solid var(--border);
 }
 
+/* شبكة بثلاثة أعمدة لا صفٌّ مرن: العمود الأول (بداية السطر — اليمين في
+   RTL) لزرّ الدرج، الأوسط للشعار مُمركَزاً حقيقةً بصرف النظر عن عرض ما
+   يجاوره، والثالث (اليسار) لأزرار الحساب. عمودا الطرفين `1fr` متساويان
+   فيبقى الأوسط في المنتصف دائماً حتى لو اختلف عرض محتوى الطرفين. */
 .topbar-inner {
   max-width: 720px;
   margin: 0 auto;
   padding: 12px 16px;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 10px;
 }
@@ -79,6 +84,7 @@ button { font-family: inherit; }
   font-weight: 800;
   font-size: 16px;
   color: var(--primary);
+  justify-self: center;
 }
 .brand-logo {
   width: 26px;
@@ -88,7 +94,8 @@ button { font-family: inherit; }
   flex-shrink: 0;
 }
 
-.topbar-actions { margin-inline-start: auto; display: flex; gap: 8px; }
+.topbar-actions { display: flex; gap: 8px; justify-self: end; }
+.nav-toggle-btn { justify-self: start; }
 
 /* ─────────────────────────── بطاقات زجاجية ─────────────────────────── */
 
