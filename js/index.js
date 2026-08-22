@@ -12,6 +12,9 @@ function renderTopbar() {
 }
 renderTopbar();
 
+const homeDownloadBtn = document.getElementById('homeDownloadBtn');
+if (homeDownloadBtn) homeDownloadBtn.href = sndkAppOrStoreUrl();
+
 async function loadFeaturedFacilities() {
   const body = document.getElementById('featuredFacilities');
   try {

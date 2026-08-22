@@ -14,6 +14,21 @@ function cleanPhone(p) {
   return (p || '').replace(/\s+/g, '');
 }
 
+const SNDK_PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.code_yemen.snd_health';
+
+/// رابط زرّ «حمّل التطبيق»: على أندرويد يُحوَّل عبر `intent://` إلى فتح
+/// التطبيق نفسه إن كان مثبَّتاً — `/facility/` مسارٌ مُتحقَّقٌ فعلياً في
+/// `AndroidManifest.xml` (autoVerify) فيكفي وحده لإطلاق الالتقاط، وبلا
+/// معرّف بعده يرفضه محلّل الروابط العميقة بصمتٍ فيبقى التطبيق على شاشته
+/// المعتادة — لا حاجة لمسارٍ جديد تحديداً لهذا الزر. غير أندرويد
+/// (iOS/سطح مكتب) لا يفهم `intent://` أصلاً فيبقى الرابط رابط المتجر مباشرة،
+/// و`browser_fallback_url` يتكفّل بالمتجر إن لم يكن التطبيق مثبتاً على أندرويد.
+function sndkAppOrStoreUrl() {
+  if (!/Android/i.test(navigator.userAgent)) return SNDK_PLAY_STORE_URL;
+  const fallback = encodeURIComponent(SNDK_PLAY_STORE_URL);
+  return `intent://sndk-codey.onrender.com/facility/#Intent;scheme=https;package=com.code_yemen.snd_health;S.browser_fallback_url=${fallback};end`;
+}
+
 /// ورقة سفلية مشتركة — نظير openModal/closeModal الخاصّتين سابقاً بـ
 /// SndkBooking وحدها. صارتا هنا كي تستعملهما صفحاتٌ لا تحمّل booking.js
 /// أصلاً (القائمة الجانبية مثلاً) بلا تكرار نفس المنطق. عنصرٌ واحدٌ مفتوحٌ
