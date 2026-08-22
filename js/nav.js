@@ -3,7 +3,7 @@
 // تحمّل هذا الملف — لا كودٌ إضافي في كل صفحة سوى وسم <script> واحد.
 // sndkOpenModal/sndkCloseModal/esc من common.js.
 
-const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.code_yemen.snd_health';
+const PLAY_STORE_URL = SNDK_PLAY_STORE_URL;
 
 function mountNavToggle() {
   const bar = document.querySelector('.topbar-inner');
@@ -55,7 +55,7 @@ function openNavDrawer() {
       ? `<button class="btn btn-outline btn-block mb-12" id="navLogoutBtn" style="justify-content:flex-start;">${SNDK_ICONS.logout(17)} تسجيل الخروج</button>`
       : `<button class="btn btn-filled btn-block mb-12" id="navLoginBtn" style="justify-content:flex-start;">${SNDK_ICONS.login(17)} تسجيل الدخول / إنشاء حساب</button>`}
 
-    <a class="btn btn-outline btn-block mt-8" style="justify-content:flex-start;" href="${esc(PLAY_STORE_URL)}" target="_blank" rel="noopener">
+    <a class="btn btn-outline btn-block mt-8" style="justify-content:flex-start;" href="${esc(sndkAppOrStoreUrl())}" target="_blank" rel="noopener">
       ${SNDK_ICONS.download(17)} حمّل تطبيق سندك الطبي
     </a>
   `);
@@ -101,7 +101,7 @@ function showBookingsNudge() {
       <div style="color:var(--primary);">${SNDK_ICONS.smartphone(40)}</div>
       <div class="title-md mt-12" style="color:var(--text);">تابع حجوزاتك من التطبيق</div>
       <p class="text-muted mt-8">متابعة المواعيد وقائمة الانتظار وإشعاراتها متاحة في تطبيق سندك الطبي.</p>
-      <a class="btn btn-filled btn-block mt-16" href="${esc(PLAY_STORE_URL)}" target="_blank" rel="noopener">حمّله من Google Play</a>
+      <a class="btn btn-filled btn-block mt-16" href="${esc(sndkAppOrStoreUrl())}" target="_blank" rel="noopener">حمّله من Google Play</a>
       <button class="btn btn-outline btn-block mt-8" id="navNudgeCloseBtn">إغلاق</button>
     </div>
   `);
