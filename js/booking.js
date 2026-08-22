@@ -31,6 +31,23 @@ const SndkBooking = (() => {
     });
   }
 
+  // تحميلٌ كسول لمكتبة Stripe.js — مرّةً واحدة لكل صفحة، عند أول حاجة فعلية
+  // لا عند تحميل الصفحة. CSP الصفحات الأربع التي تحمّل هذا الملف
+  // (facility/appointment/camp/doctor) تسمح بـjs.stripe.com تحديداً لهذا.
+  let stripeJsPromise = null;
+  function loadStripeJs() {
+    if (window.Stripe) return Promise.resolve(window.Stripe);
+    if (stripeJsPromise) return stripeJsPromise;
+    stripeJsPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://js.stripe.com/v3/';
+      script.onload = () => resolve(window.Stripe);
+      script.onerror = () => reject(new Error('تعذّر تحميل نموذج الدفع.'));
+      document.head.appendChild(script);
+    });
+    return stripeJsPromise;
+  }
+
   // openModal/closeModal الآن sndkOpenModal/sndkCloseModal من common.js —
   // مشتركتان مع أي صفحة تحتاج ورقة سفلية بلا تحميل هذا الملف كله.
   const closeModal = sndkCloseModal;
@@ -350,9 +367,11 @@ const SndkBooking = (() => {
   /// لا من عودة المستخدم من صفحة البوّابة — عودته ليست دليل دفع.
   function openPaymentSheet(appointment) {
     const paymentIdempotencyKey = uid();
-    let phase = 'idle'; // idle | opening | waiting | paid | failed | timedOut
+    let phase = 'idle'; // idle | opening | card | waiting | paid | failed | timedOut
     let reference = null;
     let lastError = null;
+    let stripe = null;
+    let elements = null;
 
     const sheet = openModal(`
       <h3 class="title-md">إتمام الدفع</h3>
@@ -379,7 +398,11 @@ const SndkBooking = (() => {
         body.querySelector('#payLaterBtn').addEventListener('click', closeModal);
       } else if (phase === 'opening') {
         body.innerHTML = `<div class="row" style="justify-content:center;padding:24px 0;"><div class="spinner spinner-dark"></div></div>
-          <p class="text-muted" style="text-align:center;">جارٍ فتح بوّابة الدفع…</p>`;
+          <p class="text-muted" style="text-align:center;">جارٍ تجهيز نموذج الدفع…</p>`;
+      } else if (phase === 'card') {
+        // يُرسَم مرّةً واحدة فقط عند الدخول — انظر `enterCardPhase`. `redraw`
+        // لا يعيد بناء هذا الجزء: إعادة `innerHTML` هنا تهدم إطار Stripe
+        // المضمَّن (`#stripePaymentElement`) وتفقد ما كتبه المستخدم للتوّ.
       } else if (phase === 'waiting') {
         body.innerHTML = `
           <div class="row" style="justify-content:center;padding:24px 0;"><div class="spinner spinner-dark"></div></div>
@@ -407,34 +430,7 @@ const SndkBooking = (() => {
       }
     }
 
-    async function startPayment() {
-      phase = 'opening';
-      redraw();
-
-      let intent;
-      try {
-        intent = await SndkPayment.openPayment(appointment.id, paymentIdempotencyKey);
-      } catch (err) {
-        phase = 'failed';
-        lastError = err.message;
-        redraw();
-        return;
-      }
-
-      reference = intent.reference;
-
-      // نيّةٌ عادت من مفتاح عدم تكرارٍ سابق (استئناف) لا رابط توجيه معها —
-      // لا يُعاد نداء البوّابة، يُنتقل للمتابعة مباشرة كما في التطبيق تماماً.
-      if (intent.redirect_url) {
-        const opened = window.open(intent.redirect_url, '_blank', 'noopener');
-        if (!opened) {
-          phase = 'failed';
-          lastError = 'تعذّر فتح صفحة الدفع — تحقّق من إعدادات حظر النوافذ المنبثقة.';
-          redraw();
-          return;
-        }
-      }
-
+    function beginWatching() {
       phase = 'waiting';
       redraw();
 
@@ -454,6 +450,109 @@ const SndkBooking = (() => {
         }
         // ما زالت جارية: تُترَك على "waiting" حتى الجولة التالية.
       });
+    }
+
+    /// يُرسَم مرّةً واحدة عند الدخول إلى `card` — لا من `redraw()` (انظر
+    /// تعليقها) كي لا يُعاد تركيب إطار Stripe فيُفقَد ما كتبه المستخدم.
+    async function enterCardPhase(clientSecret) {
+      phase = 'card';
+      const body = sheet.querySelector('#payBody');
+      if (!body) return; // أُغلقت الورقة أثناء تحميل Stripe.js.
+
+      body.innerHTML = `
+        <div id="cardErrorBanner"></div>
+        <div id="stripePaymentElement"></div>
+        <button class="btn btn-filled btn-block mt-16" id="payConfirmBtn" disabled>تأكيد الدفع</button>
+        <button class="btn btn-outline btn-block mt-8" id="payCancelCardBtn">إلغاء</button>
+      `;
+      body.querySelector('#payCancelCardBtn').addEventListener('click', closeModal);
+
+      elements = stripe.elements({
+        clientSecret,
+        // نفس لون الهوية الموحَّد المستعمل في كل الموقع (`--primary`) — لا
+        // تبايناً بصرياً بين نموذج Stripe وبقيّة الصفحة.
+        appearance: { variables: { colorPrimary: '#0A7B93' } },
+      });
+      const paymentElement = elements.create('payment');
+      paymentElement.mount('#stripePaymentElement');
+      // الزرّ معطَّل حتى يبلغ Stripe.js أن الحقل جاهزٌ فعلياً — نداءٌ مبكر
+      // على `confirmPayment` قبل هذا يُعيد خطأً غامضاً بدل تجربة واضحة.
+      paymentElement.on('ready', () => {
+        const btn = body.querySelector('#payConfirmBtn');
+        if (btn) btn.disabled = false;
+      });
+      body.querySelector('#payConfirmBtn').addEventListener('click', confirmCardPayment);
+    }
+
+    /// نجاح `confirmPayment` من جهة العميل **لا يُعرض كنجاح حجز مباشرة** —
+    /// نفس القاعدة الحاكمة في مسار التحويل بالحرف: الانتقال إلى `waiting`
+    /// ومتابعة `payment-status` وحده يحسم النتيجة.
+    async function confirmCardPayment() {
+      const body = sheet.querySelector('#payBody');
+      const btn = body && body.querySelector('#payConfirmBtn');
+      if (btn) { btn.disabled = true; btn.textContent = 'جارٍ التأكيد…'; }
+
+      const { error } = await stripe.confirmPayment({
+        elements,
+        // `if_required`: بطاقةٌ فقط من جهة الخادم (انظر stripe.ts) — هذا
+        // يمنع أي تحويلٍ فعلي، حتى تحدّي ٣DS يظهر داخل الصفحة.
+        confirmParams: { return_url: window.location.href },
+        redirect: 'if_required',
+      });
+
+      if (error) {
+        const banner = body && body.querySelector('#cardErrorBanner');
+        if (banner) banner.innerHTML = `<div class="banner banner-error">${esc(error.message || 'تعذّر تأكيد الدفع.')}</div>`;
+        if (btn) { btn.disabled = false; btn.textContent = 'تأكيد الدفع'; }
+        return; // العميل يمكنه تعديل البطاقة والمحاولة مجدَّداً بنفس النيّة.
+      }
+
+      beginWatching();
+    }
+
+    async function startPayment() {
+      phase = 'opening';
+      redraw();
+
+      let intent;
+      try {
+        intent = await SndkPayment.openPayment(appointment.id, paymentIdempotencyKey);
+      } catch (err) {
+        phase = 'failed';
+        lastError = err.message;
+        redraw();
+        return;
+      }
+
+      reference = intent.reference;
+
+      if (intent.client_secret) {
+        try {
+          const Stripe = await loadStripeJs();
+          stripe = Stripe(intent.publishable_key, { locale: 'ar' });
+        } catch (err) {
+          phase = 'failed';
+          lastError = err.message || 'تعذّر تحميل نموذج الدفع.';
+          redraw();
+          return;
+        }
+        await enterCardPhase(intent.client_secret);
+        return;
+      }
+
+      // نيّةٌ عادت من مفتاح عدم تكرارٍ سابق (استئناف) لا رابط توجيه معها —
+      // لا يُعاد نداء البوّابة، يُنتقل للمتابعة مباشرة كما في التطبيق تماماً.
+      if (intent.redirect_url) {
+        const opened = window.open(intent.redirect_url, '_blank', 'noopener');
+        if (!opened) {
+          phase = 'failed';
+          lastError = 'تعذّر فتح صفحة الدفع — تحقّق من إعدادات حظر النوافذ المنبثقة.';
+          redraw();
+          return;
+        }
+      }
+
+      beginWatching();
     }
 
     redraw();
