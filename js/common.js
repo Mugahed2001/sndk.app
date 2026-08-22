@@ -234,7 +234,7 @@ const SNDK_HEX = {
   warning: '#FF9500',
   error: '#C62828',
   info: '#17A2B8',
-  textMuted: '#718096',
+  textMuted: '#5D6B82', // مطابقٌ لـ--text-muted في app.css — انظر تعليقها لسبب القيمة.
 };
 
 /// هل يقبل هذا الحجز الإلكتروني — نظير BookingEntryButton في التطبيق بالحرف
@@ -388,7 +388,7 @@ function facilityCardHtml(f) {
       <div class="row gap-12" style="align-items:flex-start;">
         <div class="avatar">
           ${f.image_url || f.logo_url
-            ? `<img src="${esc(f.image_url || f.logo_url)}" alt="" data-fallback-type="hospital">`
+            ? `<img src="${esc(f.image_url || f.logo_url)}" alt="${esc(f.name || '')}" data-fallback-type="hospital">`
             : SNDK_FALLBACK_ICONS.hospital()}
         </div>
         <div style="flex:1;min-width:0;">
@@ -437,7 +437,7 @@ function doctorCardHtml(d, specialtiesById) {
       <div class="row gap-12">
         <div class="avatar" style="width:52px;height:52px;border-radius:50%;">
           ${d.photo_url || d.image_url
-            ? `<img src="${esc(d.photo_url || d.image_url)}" alt="" data-fallback-type="person">`
+            ? `<img src="${esc(d.photo_url || d.image_url)}" alt="${esc(d.name || '')}" data-fallback-type="person">`
             : SNDK_FALLBACK_ICONS.person()}
         </div>
         <div style="flex:1;min-width:0;">
