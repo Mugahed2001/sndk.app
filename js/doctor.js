@@ -76,7 +76,7 @@ function render(doctor, schedules, specialty) {
             <div class="row spread">
               <div class="title-lg" style="font-size:18px;">${esc(doctor.name)}</div>
               <button class="btn btn-sm btn-outline" id="doctorShareBtn" title="مشاركة">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M13.5 6.5L17.5 10.5M4 20l1-4.5L14.5 6l3.5 3.5L9.5 19 5 20H4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+                ${SNDK_ICONS.share(15, 'currentColor')}
               </button>
             </div>
             ${specialtyName ? `<div class="text-muted mt-8">${esc(specialtyName)}</div>` : ''}
