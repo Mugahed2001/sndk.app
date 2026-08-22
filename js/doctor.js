@@ -69,7 +69,7 @@ function render(doctor, schedules, specialty) {
         <div class="row gap-12" style="align-items:flex-start;">
           <div class="avatar" style="width:64px;height:64px;border-radius:50%;">
             ${doctor.photo_url || doctor.image_url
-              ? `<img src="${esc(doctor.photo_url || doctor.image_url)}" alt="" data-fallback-type="person">`
+              ? `<img src="${esc(doctor.photo_url || doctor.image_url)}" alt="${esc(doctor.name || '')}" data-fallback-type="person">`
               : SNDK_FALLBACK_ICONS.person()}
           </div>
           <div style="flex:1;min-width:0;">

@@ -73,7 +73,7 @@ async function render(camp) {
   document.getElementById('root').innerHTML = `
     ${camp.image_url
       ? `<div style="width:100%;height:180px;overflow:hidden;background:rgba(15,163,189,0.08);display:flex;align-items:center;justify-content:center;">
-           <img src="${esc(camp.image_url)}" alt="" data-fallback-type="camp" style="width:100%;height:100%;object-fit:cover;display:block;">
+           <img src="${esc(camp.image_url)}" alt="${esc(camp.title || '')}" data-fallback-type="camp" style="width:100%;height:100%;object-fit:cover;display:block;">
          </div>`
       : ''}
     <div class="container">

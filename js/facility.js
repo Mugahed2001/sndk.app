@@ -93,7 +93,7 @@ function render(facility, schedules) {
       <div class="row gap-12" style="align-items:flex-start;">
         <div class="avatar" id="facilityAvatar">
           ${facility.image_url
-            ? `<img src="${esc(facility.image_url)}" alt="" data-fallback-type="hospital">`
+            ? `<img src="${esc(facility.image_url)}" alt="${esc(facility.name || '')}" data-fallback-type="hospital">`
             : SNDK_FALLBACK_ICONS.hospital()}
         </div>
         <div style="flex:1;min-width:0;">
@@ -194,7 +194,7 @@ function renderDoctorsTab(doctors) {
       <div class="row gap-12">
         <div class="avatar" style="width:48px;height:48px;border-radius:50%;">
           ${d.photo_url
-            ? `<img src="${esc(d.photo_url)}" alt="" data-fallback-type="person">`
+            ? `<img src="${esc(d.photo_url)}" alt="${esc(d.name || '')}" data-fallback-type="person">`
             : SNDK_FALLBACK_ICONS.person()}
         </div>
         <div style="flex:1;">
