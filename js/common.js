@@ -132,11 +132,11 @@ const SNDK_ICONS = {
     `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="${color}" stroke-width="1.8" stroke-linecap="round"/></svg>`,
   check: (size = 16, color = 'var(--primary)') =>
     `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="${color}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-  /// سهمٌ يخرج من صندوق مفتوح الأعلى — أيقونة «مشاركة» القياسية (نظير رمز
-  /// المشاركة في iOS/macOS) لا قلم: كانت مسارات القلم الخطأ منسوخة حرفياً
-  /// في ستّة مواضع (زرّ مشاركة الموعد) قبل هذا الإصلاح.
+  /// سهمٌ منحنٍ للأمام (نظير أيقونة المشاركة الكلاسيكية في فيسبوك/Gmail
+  /// «forward») — لا سهم خارجٍ من صندوق (قُرئ «رفع» لا «مشاركة») ولا قلم
+  /// (الخطأ الأصلي قبل هذا الإصلاح).
   share: (size = 16, color = 'var(--primary)') =>
-    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M12 15V3m0 0l-4 4m4-4l4 4" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 12v6a2 2 0 002 2h10a2 2 0 002-2v-6" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M15 14l5-5-5-5" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 20v-7a4 4 0 014-4h12" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   infinity: (size = 16, color = 'var(--primary)') =>
     `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M7 9a3.5 3.5 0 000 7c2 0 3.2-1.6 5-4.5S15 5 17 5a3.5 3.5 0 010 7c-2 0-3.2-1.6-5-4.5S9.5 9 7 9z" stroke="${color}" stroke-width="1.7" stroke-linejoin="round"/></svg>`,
 };
