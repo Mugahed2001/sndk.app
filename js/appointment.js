@@ -191,6 +191,9 @@ function renderVerifySection() {
       return;
     }
     SndkBooking.openPhoneVerification(phone, () => {
+      // القسم خلف الورقة يتحدَّث فوراً بالملف المُحدَّث للتوّ (`refreshProfile`
+      // نُودِيت داخل openPhoneVerification نفسها) — لا ينتظر إغلاق الورقة.
+      renderVerifySection();
       showVerifiedSuccess();
     }, 'account');
   });

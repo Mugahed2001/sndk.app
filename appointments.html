@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; frame-src https://js.stripe.com; img-src 'self' https://zoveiphxwzckgzavvrlb.supabase.co data:; connect-src 'self' https://zoveiphxwzckgzavvrlb.supabase.co https://api.stripe.com">
+<title>مواعيدي — سندك الطبي</title>
+<link rel="icon" type="image/png" href="/img/logo.png">
+<link rel="preconnect" href="https://zoveiphxwzckgzavvrlb.supabase.co">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-inner">
+      <a href="./" class="brand"><img src="/img/logo.png" alt="" class="brand-logo"> سندك الطبي</a>
+      <div class="topbar-actions" id="topbarActions"></div>
+    </div>
+  </div>
+
+  <div id="root" class="container" style="padding-top:16px;">
+    <div class="skeleton" style="height:40px;"></div>
+    <div class="skeleton" style="height:100px;"></div>
+    <div class="skeleton" style="height:100px;"></div>
+  </div>
+
+  <footer class="site-footer">© سندك الطبي</footer>
+
+  <script src="js/routing.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/auth-ui.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/payment.js"></script>
+  <script src="js/booking.js"></script>
+  <script src="js/appointments.js"></script>
+</body>
+</html>
