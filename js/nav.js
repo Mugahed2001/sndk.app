@@ -78,10 +78,7 @@ function openNavDrawer() {
   sheet.querySelector('#navDoctorsBtn').addEventListener('click', () => goTo('/doctors.html'));
   sheet.querySelector('#navSpecialtiesBtn').addEventListener('click', () => goTo('/specialties.html'));
   sheet.querySelector('#navCampsBtn').addEventListener('click', () => goTo('/camps.html'));
-  sheet.querySelector('#navBookingsBtn').addEventListener('click', () => {
-    sndkCloseModal();
-    showBookingsNudge();
-  });
+  sheet.querySelector('#navBookingsBtn').addEventListener('click', () => goTo('/appointments.html'));
   sheet.querySelector('#navLogoutBtn')?.addEventListener('click', () => {
     SndkAuth.signOut();
     sndkCloseModal();
@@ -91,21 +88,6 @@ function openNavDrawer() {
     sndkCloseModal();
     SndkAuthUI.openLoginModal(() => { if (typeof renderTopbar === 'function') renderTopbar(); });
   });
-}
-
-/// «مواعيدي» بلا حسابٍ متابَع على الموقع (الحجز هنا مقصودٌ زائراً، ومتابعة
-/// الحجوزات مهمّة التطبيق) — إشعارٌ صادق بدل شاشة فارغة أو رابطٍ معطوب.
-function showBookingsNudge() {
-  const sheet = sndkOpenModal(`
-    <div class="state-box">
-      <div style="color:var(--primary);">${SNDK_ICONS.smartphone(40)}</div>
-      <div class="title-md mt-12" style="color:var(--text);">تابع حجوزاتك من التطبيق</div>
-      <p class="text-muted mt-8">متابعة المواعيد وقائمة الانتظار وإشعاراتها متاحة في تطبيق سندك الطبي.</p>
-      <a class="btn btn-filled btn-block mt-16" href="${esc(sndkAppOrStoreUrl())}" target="_blank" rel="noopener">حمّله من Google Play</a>
-      <button class="btn btn-outline btn-block mt-8" id="navNudgeCloseBtn">إغلاق</button>
-    </div>
-  `);
-  sheet.querySelector('#navNudgeCloseBtn').addEventListener('click', sndkCloseModal);
 }
 
 mountNavToggle();

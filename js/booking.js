@@ -332,6 +332,9 @@ const SndkBooking = (() => {
             const result = await SndkApi.postData('verify-phone-code', {
               phone, code, purpose, want_grant: purpose === 'camp',
             }, { accessToken: await SndkAuth.validAccessToken() });
+            // تحديثٌ فوريّ للملف المخزَّن محلياً — بلا هذا يبقى `phone_verified`
+            // قديماً في كل قراءة لاحقة حتى خروجٍ ودخولٍ جديدَين.
+            await SndkAuth.refreshProfile();
             closeModal();
             onVerified(result && result.grant_token);
           } catch (err) {
@@ -352,8 +355,8 @@ const SndkBooking = (() => {
         <svg width="56" height="56" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="var(--primary)" stroke-width="2"/><path d="M8 12l3 3 5-6" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <div class="title-md mt-12" style="color:var(--text);">تمّ الحجز بنجاح</div>
         ${token ? `<p class="text-muted mt-8">رقم دورك: <strong>${esc(token)}</strong></p>` : ''}
-        <p class="text-muted mt-8">يمكنك متابعة حجوزاتك من تطبيق سندك الطبي.</p>
         <button class="btn btn-filled btn-block mt-16" id="bookingDoneBtn">تم</button>
+        <a class="btn btn-outline btn-block mt-8" href="${sndkBasePath()}/appointments.html">عرض مواعيدي</a>
       </div>
     `);
     sheet.querySelector('#bookingDoneBtn').addEventListener('click', closeModal);
@@ -418,6 +421,7 @@ const SndkBooking = (() => {
             <div class="title-md mt-12" style="color:var(--text);">تمّ الدفع وتأكيد الحجز</div>
             ${token ? `<p class="text-muted mt-8">رقم دورك: <strong>${esc(token)}</strong></p>` : ''}
             <button class="btn btn-filled btn-block mt-16" id="payDoneBtn">تم</button>
+            <a class="btn btn-outline btn-block mt-8" href="${sndkBasePath()}/appointments.html">عرض مواعيدي</a>
           </div>
         `;
         body.querySelector('#payDoneBtn').addEventListener('click', closeModal);
@@ -558,5 +562,5 @@ const SndkBooking = (() => {
     redraw();
   }
 
-  return { start, closeModal, openPhoneVerification, openModal };
+  return { start, closeModal, openPhoneVerification, openModal, openPaymentSheet };
 })();

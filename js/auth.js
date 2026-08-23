@@ -134,6 +134,22 @@ const SndkAuth = (() => {
     notify();
   }
 
+  /// يُعيد جلب الملف الشخصي ويستبدل اللقطة المخزَّنة — لتغييرٍ حدث خادمياً
+  /// بعد الدخول (توثيق رقم الهاتف مثالاً) ولا سبب لانتظار خروج/دخول جديدَين
+  /// كي ينعكس. فشلٌ هنا لا يُسقط الجلسة — يُعاد الملف القديم كما هو.
+  async function refreshProfile() {
+    if (!session) return null;
+    try {
+      const profile = await fetchProfile(await validAccessToken());
+      session = { ...session, profile };
+      save(session);
+      notify();
+      return profile;
+    } catch (_) {
+      return session.profile;
+    }
+  }
+
   return {
     isLoggedIn,
     currentUser,
@@ -141,6 +157,7 @@ const SndkAuth = (() => {
     signIn,
     signUp,
     signOut,
+    refreshProfile,
     onChange,
   };
 })();
