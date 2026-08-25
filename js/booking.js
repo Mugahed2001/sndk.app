@@ -370,11 +370,15 @@ const SndkBooking = (() => {
   /// لا من عودة المستخدم من صفحة البوّابة — عودته ليست دليل دفع.
   function openPaymentSheet(appointment) {
     const paymentIdempotencyKey = uid();
-    let phase = 'idle'; // idle | opening | card | waiting | paid | failed | timedOut
+    let phase = 'idle'; // idle | opening | choose | card | waiting | paid | failed | timedOut
     let reference = null;
     let lastError = null;
     let stripe = null;
     let elements = null;
+    let cashChannel = null;
+    let manualIntentUuid = null;
+    let pendingIntent = null;
+    let viaCash = false;
 
     const sheet = openModal(`
       <h3 class="title-md">إتمام الدفع</h3>
@@ -406,8 +410,21 @@ const SndkBooking = (() => {
         // يُرسَم مرّةً واحدة فقط عند الدخول — انظر `enterCardPhase`. `redraw`
         // لا يعيد بناء هذا الجزء: إعادة `innerHTML` هنا تهدم إطار Stripe
         // المضمَّن (`#stripePaymentElement`) وتفقد ما كتبه المستخدم للتوّ.
-      } else if (phase === 'waiting') {
+      } else if (phase === 'choose') {
         body.innerHTML = `
+          <button class="btn btn-filled btn-block" id="payCardChoiceBtn">الدفع بالبطاقة الآن</button>
+          <button class="btn btn-outline btn-block mt-8" id="payCashChoiceBtn">الدفع عند الاستقبال${cashChannel && cashChannel.name_ar ? ` — ${esc(cashChannel.name_ar)}` : ''}</button>
+          <p class="text-muted mt-8" style="text-align:center;font-size:12px;">اختر «الدفع عند الاستقبال» إن كنت ستدفع نقداً في المرفق — يُراجَع تأكيدك عند وصولك ويبقى مقعدك محجوزاً حتى ذلك.</p>
+        `;
+        body.querySelector('#payCardChoiceBtn').addEventListener('click', () => proceedWithGateway(pendingIntent));
+        body.querySelector('#payCashChoiceBtn').addEventListener('click', payWithCash);
+      } else if (phase === 'waiting') {
+        body.innerHTML = viaCash ? `
+          <div class="row" style="justify-content:center;padding:24px 0;"><div class="spinner spinner-dark"></div></div>
+          <p class="text-muted" style="text-align:center;">بانتظار تأكيد الاستقبال لدفعك النقدي…</p>
+          <p class="text-muted" style="text-align:center;font-size:12px;">مقعدك محجوزٌ حتى تصلك المراجعة — لا حاجة للبقاء في هذه الصفحة.</p>
+          ${reference ? `<p class="text-muted mt-8" style="text-align:center;">المرجع: ${esc(reference)}</p>` : ''}
+        ` : `
           <div class="row" style="justify-content:center;padding:24px 0;"><div class="spinner spinner-dark"></div></div>
           <p class="text-muted" style="text-align:center;">بانتظار نتيجة الدفع…</p>
           <p class="text-muted" style="text-align:center;font-size:12px;">أكمل العملية في التبويب الذي فتحناه لك، ثم عد إلى هنا.</p>
@@ -530,6 +547,35 @@ const SndkBooking = (() => {
 
       reference = intent.reference;
 
+      // القنوات اليدوية (نقد عند الاستقبال بصفة رئيسية) — فشل جلبها لا يمنع
+      // الدفع بالبطاقة إطلاقاً؛ ولا مرفق يملك قناةً افتراضياً حتى يُضيفها
+      // مديره من لوحة الإدارة، فالمسار الحالي (بطاقة مباشرة) يبقى كما هو
+      // لكل مرفقٍ لم يُفعِّل هذه الميزة بعد.
+      try {
+        const manual = await SndkPayment.manualChannels(reference);
+        manualIntentUuid = manual.intent_id;
+        cashChannel = (manual.channels || []).find((c) => c.kind === 'cash') || null;
+      } catch (_) {
+        cashChannel = null;
+      }
+
+      if (cashChannel && (intent.client_secret || intent.redirect_url)) {
+        pendingIntent = intent;
+        phase = 'choose';
+        redraw();
+        return;
+      }
+
+      if (cashChannel && !intent.client_secret && !intent.redirect_url) {
+        // لا بوّابة آلية متاحة أصلاً (نادرٌ) لكنّ النقد متاح — بلا اختيار.
+        await payWithCash();
+        return;
+      }
+
+      await proceedWithGateway(intent);
+    }
+
+    async function proceedWithGateway(intent) {
       if (intent.client_secret) {
         try {
           const Stripe = await loadStripeJs();
@@ -556,6 +602,22 @@ const SndkBooking = (() => {
         }
       }
 
+      beginWatching();
+    }
+
+    /// تأكيد نيّة الدفع نقداً — بلا إثبات ملفٍّ (`proofUrl: null`، القناة
+    /// `requires_proof=false` أصلاً). النيّة تصير `processing` وتنتظر مراجعة
+    /// الاستقبال؛ `beginWatching` يتابعها بلا أي فرقٍ عن مسار البطاقة.
+    async function payWithCash() {
+      viaCash = true;
+      try {
+        await SndkPayment.submitManualProof(manualIntentUuid, cashChannel.id);
+      } catch (err) {
+        phase = 'failed';
+        lastError = err.message;
+        redraw();
+        return;
+      }
       beginWatching();
     }
 

@@ -21,6 +21,28 @@ const SndkPayment = (() => {
     });
   }
 
+  /// قنوات الدفع اليدوي المتاحة لهذه النيّة (بنك/محفظة/نقد عند الاستقبال) —
+  /// نظير `manual-payment{action:'channels'}` بالحرف. قد تعود مصفوفة فارغة:
+  /// لا قناة مفعَّلة لهذا المرفق بعد، لا خطأ.
+  async function manualChannels(reference) {
+    return SndkApi.postData('manual-payment', { action: 'channels', reference }, {
+      accessToken: await SndkAuth.validAccessToken(),
+    });
+  }
+
+  /// يُنادى بـ`proofUrl: null` لقناة النقد (`requires_proof=false`) — تأكيدُ
+  /// نيّةٍ لا إثباتَ ملفٍ. النيّة تنتقل `processing` وتنتظر مراجعة الاستقبال؛
+  /// `watch` يتابعها كأي نيّةٍ أخرى بلا فرق.
+  async function submitManualProof(intentId, channelId, { proofUrl = null, note = null } = {}) {
+    return SndkApi.postData('manual-payment', {
+      action: 'submit_proof',
+      intent_id: intentId,
+      channel_id: channelId,
+      proof_url: proofUrl,
+      note,
+    }, { accessToken: await SndkAuth.validAccessToken() });
+  }
+
   /// يستقصي النتيجة بتأخيرٍ متصاعد (٢ث ← ١٥ث كحدّ أقصى) حتى تستقرّ الحالة أو
   /// تنقضي ثلاث دقائق — نفس جدول `PaymentService.watch` بالحرف، فيبقى حِمل
   /// `paystatus` على الحافة كما صُمِّم له (عشرون نداءً لا تسعون).
@@ -46,5 +68,5 @@ const SndkPayment = (() => {
     onUpdate(null); // إشارة انقضاء مهلة المتابعة بلا حالة نهائية — "timed_out".
   }
 
-  return { openPayment, refreshStatus, watch };
+  return { openPayment, refreshStatus, watch, manualChannels, submitManualProof };
 })();
