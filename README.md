@@ -69,6 +69,7 @@ facility.html          صفحة المرفق
 appointment.html       تفاصيل موعد فردي + حجز + توثيق هاتف استباقي
 camps.html             قائمة المخيمات الطبية
 camp.html              تفاصيل مخيم + تسجيل
+about.html              صفحة «عنّا» — مميزات المنصة وأرقامها الحقيقية، بلا باقات
 404.html               حيلة التوجيه للمسارات الجميلة
 css/app.css             نظام تصميم مطابق لـ lib/utils/theme.dart في التطبيق
 js/routing.js           sndkBasePath() المشتركة
@@ -83,6 +84,8 @@ js/facility.js          منطق صفحة المرفق
 js/appointment.js       منطق صفحة الموعد الفردي
 js/camps.js             منطق قائمة المخيمات
 js/camp.js              منطق صفحة المخيم والتسجيل
+js/about.js             منطق صفحة «عنّا» — يقرأ القدرات والإحصاءات حيّة من
+                        get-public-feature-catalog/get-public-stats (لا باقات)
 js/404-redirect.js      إعادة التوجيه من 404.html وحده
 ```
 
