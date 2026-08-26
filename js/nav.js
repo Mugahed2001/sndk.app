@@ -50,6 +50,9 @@ function openNavDrawer() {
     <button class="btn btn-outline btn-block mb-12" id="navCampsBtn" style="justify-content:flex-start;">${SNDK_FALLBACK_ICONS.camp(17)} المخيمات الطبية</button>
     <button class="btn btn-outline btn-block mb-12" id="navBookingsBtn" style="justify-content:flex-start;">${SNDK_ICONS.calendar(17)} مواعيدي</button>
 
+    <div class="section-title" style="margin:20px 0 8px;">عن سندك</div>
+    <button class="btn btn-outline btn-block mb-12" id="navAboutBtn" style="justify-content:flex-start;">${SNDK_FALLBACK_ICONS.hospital(17)} عن سندك الطبي</button>
+
     <div class="section-title" style="margin:20px 0 8px;">الحساب</div>
     ${loggedIn
       ? `<button class="btn btn-outline btn-block mb-12" id="navLogoutBtn" style="justify-content:flex-start;">${SNDK_ICONS.logout(17)} تسجيل الخروج</button>`
@@ -79,6 +82,7 @@ function openNavDrawer() {
   sheet.querySelector('#navSpecialtiesBtn').addEventListener('click', () => goTo('/specialties.html'));
   sheet.querySelector('#navCampsBtn').addEventListener('click', () => goTo('/camps.html'));
   sheet.querySelector('#navBookingsBtn').addEventListener('click', () => goTo('/appointments.html'));
+  sheet.querySelector('#navAboutBtn').addEventListener('click', () => goTo('/about.html'));
   sheet.querySelector('#navLogoutBtn')?.addEventListener('click', () => {
     SndkAuth.signOut();
     sndkCloseModal();
