@@ -7,7 +7,7 @@ const SndkBooking = (() => {
   const DAY_LABELS_AR = ['س', 'ح', 'ن', 'ث', 'ر', 'خ', 'ج'];
   const REASON_MESSAGES = {
     NOT_WORKING_DAY: 'لا دوام في هذا اليوم',
-    OUTSIDE_SCHEDULE: 'خارج فترة الجدولة',
+    OUTSIDE_SCHEDULE: 'خارج وقت الدوام',
     DOCTOR_ABSENT: 'الطبيب في غياب مؤقت',
     FULL: 'اكتمل العدد',
     SCHEDULE_UNAVAILABLE: 'الحجز غير متاح لهذه العيادة',
@@ -91,7 +91,7 @@ const SndkBooking = (() => {
     }
     if (days.length === 0) {
       sheet.querySelector('#availBody').innerHTML =
-        '<div class="state-box">لا مواعيد متاحة لهذه الجدولة حالياً.</div>';
+        '<div class="state-box">لا مواعيد متاحة لهذا الموعد حالياً.</div>';
       return;
     }
 
@@ -412,8 +412,8 @@ const SndkBooking = (() => {
         // المضمَّن (`#stripePaymentElement`) وتفقد ما كتبه المستخدم للتوّ.
       } else if (phase === 'choose') {
         body.innerHTML = `
-          <button class="btn btn-filled btn-block" id="payCardChoiceBtn">الدفع بالبطاقة الآن</button>
-          <button class="btn btn-outline btn-block mt-8" id="payCashChoiceBtn">الدفع عند الاستقبال${cashChannel && cashChannel.name_ar ? ` — ${esc(cashChannel.name_ar)}` : ''}</button>
+          <button class="btn btn-filled btn-block" id="payCashChoiceBtn">الدفع عند الاستقبال${cashChannel && cashChannel.name_ar ? ` — ${esc(cashChannel.name_ar)}` : ''}</button>
+          <button class="btn btn-outline btn-block mt-8" id="payCardChoiceBtn">الدفع بالبطاقة الآن</button>
           <p class="text-muted mt-8" style="text-align:center;font-size:12px;">اختر «الدفع عند الاستقبال» إن كنت ستدفع نقداً في المرفق — يُراجَع تأكيدك عند وصولك ويبقى مقعدك محجوزاً حتى ذلك.</p>
         `;
         body.querySelector('#payCardChoiceBtn').addEventListener('click', () => proceedWithGateway(pendingIntent));

@@ -107,8 +107,8 @@ function render(facility, schedules) {
             ${doctors.length ? chip(`${doctors.length} طبيب`, SNDK_HEX.accentPurple) : ''}
           </div>
           <div class="row wrap gap-8 mt-12" id="primaryActions">
-            ${primaryPhone ? `<button class="btn btn-sm btn-filled" id="callBtn">اتصال</button>` : ''}
-            ${primaryWhatsapp ? `<button class="btn btn-sm btn-outline" id="waBtn">واتساب</button>` : ''}
+            ${primaryWhatsapp ? `<button class="btn btn-sm btn-filled" id="waBtn">واتساب</button>` : ''}
+            ${primaryPhone ? `<button class="btn btn-sm ${primaryWhatsapp ? 'btn-outline' : 'btn-filled'}" id="callBtn">اتصال</button>` : ''}
             ${facility.googl_map ? `<button class="btn btn-sm btn-outline" id="mapBtn">الموقع</button>` : ''}
             ${schedules.length ? `<button class="btn btn-sm btn-outline" id="jumpSchedulesBtn">المواعيد</button>` : ''}
           </div>
@@ -125,7 +125,7 @@ function render(facility, schedules) {
     <div class="container" style="padding-top:0;">
       <div class="tab-panel active" id="panel-info">${renderInfoTab(facility, phones, whatsapps)}</div>
       <div class="tab-panel" id="panel-doctors">${renderDoctorsTab(doctors)}</div>
-      <div class="tab-panel" id="panel-schedules">${schedules.length ? '<div class="skeleton"></div><div class="skeleton"></div>' : '<div class="state-box">لا جدولات معلنة لهذا المرفق حالياً.</div>'}</div>
+      <div class="tab-panel" id="panel-schedules">${schedules.length ? '<div class="skeleton"></div><div class="skeleton"></div>' : '<div class="state-box">لا مواعيد معلنة لهذا المرفق حالياً.</div>'}</div>
     </div>
     <footer class="site-footer">© سندك الطبي</footer>
   `;
@@ -146,12 +146,12 @@ function renderInfoTab(facility, phones, whatsapps) {
   let html = '';
 
   html += sectionTitle('معلومات التواصل');
-  if (phones.length === 0) {
-    html += `<div class="card card-pad mb-12"><span class="text-muted">لا أرقام هاتف مسجّلة</span></div>`;
+  for (const w of whatsapps) html += contactCard('whatsapp', w, w);
+  if (phones.length === 0 && whatsapps.length === 0) {
+    html += `<div class="card card-pad mb-12"><span class="text-muted">لا أرقام تواصل مسجّلة</span></div>`;
   } else {
     for (const p of phones) html += contactCard('phone', p, p);
   }
-  for (const w of whatsapps) html += contactCard('whatsapp', w, w);
   if (facility.email) html += contactCard('email', 'البريد الإلكتروني', facility.email);
   if (facility.website) html += contactCard('website', 'الموقع الإلكتروني', facility.website);
 
@@ -212,7 +212,7 @@ function scheduleGroupLabel(s) {
 }
 
 function renderSchedulesTab(schedules, facility, bookingFacilityIds, facilityDoctorFlags) {
-  if (schedules.length === 0) return '<div class="state-box">لا جدولات معلنة لهذا المرفق حالياً.</div>';
+  if (schedules.length === 0) return '<div class="state-box">لا مواعيد معلنة لهذا المرفق حالياً.</div>';
 
   const groups = {};
   for (const s of schedules) {

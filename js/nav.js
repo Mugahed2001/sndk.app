@@ -44,7 +44,7 @@ function openNavDrawer() {
     </div>
 
     <div class="section-title" style="margin:20px 0 8px;">تصفّح</div>
-    <button class="btn btn-outline btn-block mb-12" id="navFacilitiesBtn" style="justify-content:flex-start;">${SNDK_FALLBACK_ICONS.hospital(17)} المرافق الصحية</button>
+    <button class="btn btn-outline btn-block mb-12" id="navFacilitiesBtn" style="justify-content:flex-start;">${SNDK_FALLBACK_ICONS.hospital(17)} المستشفيات والعيادات</button>
     <button class="btn btn-outline btn-block mb-12" id="navDoctorsBtn" style="justify-content:flex-start;">${SNDK_FALLBACK_ICONS.person(17)} الأطباء</button>
     <button class="btn btn-outline btn-block mb-12" id="navSpecialtiesBtn" style="justify-content:flex-start;">${SNDK_ICONS.grid(17)} التخصصات</button>
     <button class="btn btn-outline btn-block mb-12" id="navCampsBtn" style="justify-content:flex-start;">${SNDK_FALLBACK_ICONS.camp(17)} المخيمات الطبية</button>

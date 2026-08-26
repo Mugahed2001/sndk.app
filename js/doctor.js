@@ -86,7 +86,7 @@ function render(doctor, schedules, specialty) {
         ${doctor.bio ? `<p class="text-muted mt-12">${esc(doctor.bio)}</p>` : ''}
       </div>
 
-      <div class="section-title" style="margin:20px 0 8px;">الجدولات والمواعيد</div>
+      <div class="section-title" style="margin:20px 0 8px;">مواعيد الطبيب</div>
       <div id="doctorSchedulesBody">
         <div class="skeleton" style="height:100px;"></div>
       </div>
@@ -104,7 +104,7 @@ function render(doctor, schedules, specialty) {
 async function loadDoctorSchedules(doctor, schedules) {
   const body = document.getElementById('doctorSchedulesBody');
   if (schedules.length === 0) {
-    body.innerHTML = '<div class="state-box">لا جدولات معلنة لهذا الطبيب حالياً.</div>';
+    body.innerHTML = '<div class="state-box">لا مواعيد معلنة لهذا الطبيب حالياً.</div>';
     return;
   }
 
