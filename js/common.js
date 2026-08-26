@@ -351,10 +351,10 @@ function facilityContactFallback(facility) {
     <div class="mt-8">
       <p class="text-muted" style="font-size:12px;margin:0 0 8px;">الحجز الإلكتروني غير متاح لهذا الموعد — تواصل مع المرفق مباشرة.</p>
       <div class="row gap-8">
-        <button class="btn btn-sm btn-filled contact-call-btn" style="flex:1;" data-phone="${esc(phone || '')}"
+        <button class="btn btn-sm ${whatsapp ? 'btn-filled' : 'btn-outline'} contact-wa-btn" style="flex:1;" data-whatsapp="${esc(whatsapp || '')}"
+                ${whatsapp ? '' : 'disabled title="لا رقم واتساب مسجَّل"'}>${SNDK_ICONS.chat(15, whatsapp ? 'currentColor' : undefined)} واتساب</button>
+        <button class="btn btn-sm ${whatsapp ? 'btn-outline' : 'btn-filled'} contact-call-btn" style="flex:1;" data-phone="${esc(phone || '')}"
                 ${phone ? '' : 'disabled title="لا رقم اتصال مسجَّل"'}>${SNDK_ICONS.phone(15, 'currentColor')} اتصال</button>
-        <button class="btn btn-sm btn-outline contact-wa-btn" style="flex:1;" data-whatsapp="${esc(whatsapp || '')}"
-                ${whatsapp ? '' : 'disabled title="لا رقم واتساب مسجَّل"'}>${SNDK_ICONS.chat(15)} واتساب</button>
       </div>
     </div>
   `;
@@ -412,8 +412,8 @@ function facilityCardHtml(f) {
             ${location ? `<span class="chip" style="background:${SNDK_HEX.primary}1F;color:${SNDK_HEX.primary};">${esc(location)}</span>` : ''}
           </div>
           <div class="row gap-8 mt-8">
-            ${phones[0] ? `<button class="btn btn-sm btn-outline facility-call-btn" data-phone="${esc(phones[0])}">${SNDK_ICONS.phone(14)} اتصال</button>` : ''}
             ${whatsapps[0] ? `<button class="btn btn-sm btn-outline facility-wa-btn" data-whatsapp="${esc(whatsapps[0])}">${SNDK_ICONS.chat(14)} واتساب</button>` : ''}
+            ${phones[0] ? `<button class="btn btn-sm btn-outline facility-call-btn" data-phone="${esc(phones[0])}">${SNDK_ICONS.phone(14)} اتصال</button>` : ''}
           </div>
         </div>
       </div>
