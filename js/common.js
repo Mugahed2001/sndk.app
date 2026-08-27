@@ -86,7 +86,7 @@ const SNDK_FALLBACK_ICONS = {
   hospital: (size = 26) =>
     `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none">` +
     '<path d="M12 2L3 6.5V11.5C3 16.5 6.9 21.2 12 22.5C17.1 21.2 21 16.5 21 11.5V6.5L12 2Z" stroke="var(--primary)" stroke-width="1.6"/>' +
-    '<path d="M12 8V16M8 12H16" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    '<path d="M14.6 7.6a4.6 4.6 0 100 8.8 3.7 3.7 0 010-8.8z" stroke="var(--primary)" stroke-width="1.7" stroke-linejoin="round"/></svg>',
   person: (size = 24) =>
     `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none">` +
     '<circle cx="12" cy="8" r="4" stroke="var(--primary)" stroke-width="1.6"/>' +
