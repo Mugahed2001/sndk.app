@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https://zoveiphxwzckgzavvrlb.supabase.co data:; connect-src 'self' https://zoveiphxwzckgzavvrlb.supabase.co">
+<title>سياسة الخصوصية — سندك الطبي</title>
+<meta name="description" content="سياسة خصوصية سندك الطبي: البيانات التي نجمعها، سبب جمعها، من يشاركها، وكيف تطلب حذفها.">
+<link rel="icon" type="image/png" href="/img/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+<style>
+  .privacy-section { margin-top: 24px; }
+  .privacy-section h2 { font-size: 17px; margin: 0 0 8px; }
+  .privacy-section p, .privacy-section li { line-height: 1.85; color: var(--text); }
+  .privacy-section ul { margin: 0 0 8px; padding-inline-start: 20px; }
+  table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 10px 0; }
+  table.data-table th, table.data-table td { border: 1px solid var(--border); padding: 8px 10px; text-align: right; vertical-align: top; }
+  table.data-table th { background: var(--surface-2); font-weight: 700; }
+  .toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+  .toc a { font-size: 13px; padding: 6px 12px; border-radius: 999px; background: var(--surface-2); color: var(--primary); text-decoration: none; border: 1px solid var(--border); }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-inner">
+      <a href="./" class="brand"><img src="/img/logo.png" alt="" class="brand-logo"> سندك الطبي</a>
+      <div class="topbar-actions"></div>
+    </div>
+  </div>
+
+  <div class="container" style="max-width:760px;padding-top:28px;padding-bottom:48px;">
+    <h1 class="title-lg" style="font-size:22px;">سياسة الخصوصية</h1>
+    <p class="text-muted" style="margin-top:6px;">
+      سندك الطبي (المطوّر: Code Yemen) — تطبيق ويب/جوّال لعرض معلومات الأطباء
+      والمرافق الصحية وحجز المواعيد. آخر تحديث: <time datetime="2026-09-13">١٣ سبتمبر ٢٠٢٦</time>.
+    </p>
+
+    <nav class="toc">
+      <a href="#data-we-collect">ما نجمعه</a>
+      <a href="#why">لماذا نجمعه</a>
+      <a href="#sharing">من يشاركه</a>
+      <a href="#retention">مدة الاحتفاظ</a>
+      <a href="#security">الأمان</a>
+      <a href="#rights">حقوقك</a>
+      <a href="#children">الأطفال</a>
+      <a href="#changes">تعديل السياسة</a>
+      <a href="#contact">التواصل</a>
+    </nav>
+
+    <div class="privacy-section" id="data-we-collect">
+      <h2>ما البيانات التي نجمعها؟</h2>
+      <p>نجمع فقط ما يلزم لعمل الحجز والحساب — لا نجمع أكثر مما هو موصوف هنا.</p>
+      <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr><th>النوع</th><th>أمثلة</th><th>إلزامي؟</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>معلومات الحساب</td><td>الاسم، البريد الإلكتروني، رقم الهاتف</td><td>نعم</td></tr>
+            <tr><td>معلومات صحية أساسية (اختيارية)</td><td>تاريخ الميلاد، الجنس، فصيلة الدم — تُدخلها أنت فقط إن أردت</td><td>لا</td></tr>
+            <tr><td>بيانات الحجز</td><td>الطبيب/المرفق، موعد الحجز، حالة الحضور، ملاحظاتك</td><td>نعم (لإتمام الحجز)</td></tr>
+            <tr><td>بيانات الدفع</td><td>مرجع العملية ومبلغها وحالتها — لا نُخزّن رقم بطاقتك؛ يُعالَج مباشرة عبر Stripe</td><td>لا (فقط عند دفع رسم حجز)</td></tr>
+            <tr><td>معرّف الجهاز</td><td>رمز إشعارات (FCM) لإرسال تذكيرات الحجز</td><td>لا</td></tr>
+            <tr><td>سجلّات فنية</td><td>تحليلات استخدام مُجمَّعة، سجلّات أعطال</td><td>لا</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-muted" style="font-size:13px;">
+        لا نطلب موقعك الجغرافي المباشر. تحديد موقع المرفق على الخريطة يُدخله
+        مدير المرفق لعنوان مرفقه، لا موقعك أنت.
+      </p>
+    </div>
+
+    <div class="privacy-section" id="why">
+      <h2>لماذا نجمعها؟</h2>
+      <ul>
+        <li><strong>تشغيل الخدمة:</strong> إنشاء حسابك، حجز موعدك، إرسال تذكيراتك وإشعارات حالة حجزك.</li>
+        <li><strong>منع إساءة الاستخدام:</strong> التحقق من رقم هاتفك يحدّ من الحجوزات الوهمية التي تحرم مرضى آخرين من مقاعد حقيقية.</li>
+        <li><strong>معالجة الدفع:</strong> عند اختيارك دفع رسم حجز إلكترونياً.</li>
+        <li><strong>تحسين الخدمة:</strong> تحليلات مُجمَّعة وسجلّات أعطال — لا تحمل اسمك ولا رقم هاتفك.</li>
+      </ul>
+    </div>
+
+    <div class="privacy-section" id="sharing">
+      <h2>من يشارك بياناتك؟</h2>
+      <p>لا نبيع بياناتك ولا نشاركها لأغراض تسويقية. تصل بياناتك إلى:</p>
+      <ul>
+        <li><strong>المرفق الصحي الذي تحجز لديه</strong> — اسمك ورقمك وموعدك، لتقديم الخدمة فقط.</li>
+        <li><strong>Stripe</strong> — معالج الدفع، عند دفع رسم حجز إلكترونياً فقط. لا يصله سوى ما يلزم لإتمام العملية.</li>
+        <li><strong>Supabase</strong> — مزوّد قاعدة البيانات والاستضافة الذي نبني عليه المنصّة.</li>
+        <li><strong>Google/Firebase</strong> — لإيصال إشعارات التذكير بالمواعيد إلى جهازك.</li>
+      </ul>
+      <p>لا نشارك بياناتك مع أي جهة أخرى إلا بطلبٍ قانونيٍّ ملزم.</p>
+    </div>
+
+    <div class="privacy-section" id="retention">
+      <h2>مدة الاحتفاظ بالبيانات</h2>
+      <p>
+        بياناتك تبقى طالما حسابك نشطاً. عند طلب حذف حسابك (من التطبيق أو من
+        <a href="delete-account.html">صفحة حذف الحساب</a>)، وبعد موافقة فريقنا،
+        يُنفَّذ الحذف خلال ٣٠ يوماً — يمكنك إلغاء الطلب خلال هذه المهلة.
+      </p>
+      <p>
+        سجلّ حجوزاتك لدى المرافق الصحية يُستثنى من الحذف الصلب: القانون يُلزم
+        المرافق الصحية بالاحتفاظ بسجلّ الزيارات والسجلّ المالي. بدلاً من الحذف،
+        يُستبدل اسمك ورقم هاتفك في تلك السجلات برمزٍ لا يُعرِّف بك، وتُحذف
+        ملاحظاتك ومرافقوك من السجل بالكامل. بعد التنفيذ لا يبقى أي بيانات
+        تعريف شخصية مرتبطة بك في نظامنا.
+      </p>
+    </div>
+
+    <div class="privacy-section" id="security">
+      <h2>كيف نحمي بياناتك؟</h2>
+      <ul>
+        <li>تشفير كامل للاتصال بين جهازك وخوادمنا (HTTPS/TLS).</li>
+        <li>عزل بيانات كل مستخدم بقواعد وصول على مستوى قاعدة البيانات (Row-Level Security) — لا يصل موظف أو مستخدم إلى بيانات لا تخصّه.</li>
+        <li>لا نُخزّن أرقام بطاقات الدفع على خوادمنا إطلاقاً.</li>
+      </ul>
+    </div>
+
+    <div class="privacy-section" id="rights">
+      <h2>حقوقك</h2>
+      <ul>
+        <li><strong>الاطّلاع:</strong> راجع بيانات حسابك وحجوزاتك من «حسابي» في التطبيق.</li>
+        <li><strong>التصحيح:</strong> عدّل اسمك أو بياناتك من نفس الشاشة.</li>
+        <li><strong>الحذف:</strong> اطلب حذف حسابك وبياناتك من «حسابي» في التطبيق، أو من <a href="delete-account.html">صفحة حذف الحساب</a> على الويب.</li>
+      </ul>
+    </div>
+
+    <div class="privacy-section" id="children">
+      <h2>الأطفال</h2>
+      <p>
+        سندك الطبي غير موجَّه للأطفال دون سن ثالثة عشرة، ولا نجمع بياناتهم
+        عمداً. حجز موعد طفلٍ يقوم به ولي أمره عبر حسابه الخاص.
+      </p>
+    </div>
+
+    <div class="privacy-section" id="changes">
+      <h2>تعديل هذه السياسة</h2>
+      <p>
+        قد نُحدّث هذه السياسة من وقتٍ لآخر لتعكس تغييرات في الخدمة أو
+        المتطلبات القانونية. سنُحدّث تاريخ "آخر تحديث" أعلاه، وأي تغييرٍ
+        جوهري سنُعلمك به داخل التطبيق.
+      </p>
+    </div>
+
+    <div class="privacy-section" id="contact">
+      <h2>التواصل</h2>
+      <p>
+        لأي استفسار بشأن خصوصيتك أو بياناتك، راسلنا على
+        <a href="mailto:privacy@sndk-codey.onrender.com">privacy@sndk-codey.onrender.com</a>.
+      </p>
+    </div>
+  </div>
+
+  <footer class="site-footer">© سندك الطبي</footer>
+</body>
+</html>
