@@ -23,7 +23,20 @@ const SndkAccountDeletion = (() => {
       `${restBase}/account_deletion_requests?select=*&order=requested_at.desc&limit=1`,
       { headers: headers(accessToken) },
     );
-    if (!res.ok) throw new Error('تعذّرت قراءة حالة الطلب.');
+    if (!res.ok) {
+      // ٤٠١/٤٠٣ يعني توكن منتهياً أو غير صالح — الجلسة، لا الطلب، هي المشكلة.
+      // نُرفق الحالة والنص الخام دائماً (لا نص عربي عام هنا) كي لا يُخفي خطأً
+      // حقيقياً (شبكة، منفذ محظور، تغييرٌ في الجدول) خلف رسالة واحدة مطلقاً.
+      let raw = '';
+      try {
+        raw = await res.text();
+      } catch (_) {
+        /* تجاهل — يبقى raw فارغاً */
+      }
+      const err = new Error(`تعذّرت قراءة حالة الطلب (HTTP ${res.status}). ${raw}`.trim());
+      err.status = res.status;
+      throw err;
+    }
     const rows = await res.json();
     return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
   }
@@ -42,7 +55,9 @@ const SndkAccountDeletion = (() => {
     } catch (_) {
       /* استجابة غير JSON — يبقى code = 'unknown' */
     }
-    throw new SndkDeletionError(code);
+    const err = new SndkDeletionError(code);
+    err.status = res.status;
+    throw err;
   }
 
   const request = (accessToken, reason) =>
@@ -66,7 +81,11 @@ class SndkDeletionError extends Error {
       NO_ACTIVE_REQUEST: 'لا يوجد طلب حذفٍ نشط لإلغائه.',
       AUTH_REQUIRED: 'يلزم تسجيل الدخول أولاً.',
     };
-    return map[this.code] || 'تعذّر تنفيذ الطلب. حاول لاحقاً أو راسلنا على privacy@sndk-codey.onrender.com.';
+    if (map[this.code]) return map[this.code];
+    if (this.status === 401 || this.status === 403) {
+      return 'انتهت جلستك. سجّل الخروج ثم الدخول من جديد وأعد المحاولة.';
+    }
+    return 'تعذّر تنفيذ الطلب. حاول لاحقاً أو راسلنا على privacy@sndk-codey.onrender.com.';
   }
 }
 
@@ -129,7 +148,28 @@ async function renderDeletionBody() {
   try {
     existing = await SndkAccountDeletion.myRequest(token);
   } catch (e) {
-    body.innerHTML = `<div class="state-box">${esc(e.message || 'تعذّر تحميل حالة الطلب.')}</div>`;
+    if (e.status === 401 || e.status === 403) {
+      // جلسة منتهية فعلياً: التوكن المحفوظ محلياً لم يعد يقبله الخادم.
+      // `signOut` يمسحها كي لا يعلق المستخدم في حلقة فشلٍ صامتة.
+      SndkAuth.signOut();
+      renderTopbar();
+      body.innerHTML = `
+        <p class="text-muted" style="margin:0 0 12px;">انتهت جلستك. سجّل الدخول من جديد لمتابعة طلب الحذف.</p>
+        <button class="btn btn-filled" id="deletionRelogin">تسجيل الدخول</button>
+      `;
+      document.getElementById('deletionRelogin')?.addEventListener('click', () =>
+        SndkAuthUI.openLoginModal(() => {
+          renderTopbar();
+          renderDeletionBody();
+        }),
+      );
+      return;
+    }
+    body.innerHTML = `
+      <div class="state-box">${esc(e.message || 'تعذّر تحميل حالة الطلب.')}</div>
+      <button class="btn btn-outline mt-16" id="deletionRetry">إعادة المحاولة</button>
+    `;
+    document.getElementById('deletionRetry')?.addEventListener('click', renderDeletionBody);
     return;
   }
 
