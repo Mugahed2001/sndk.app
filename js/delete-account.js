@@ -60,8 +60,11 @@ const SndkAccountDeletion = (() => {
     throw err;
   }
 
-  const request = (accessToken, reason) =>
-    callRpc('request_account_deletion', accessToken, { p_reason: reason || null });
+  const request = (accessToken, reason, includeFacility) =>
+    callRpc('request_account_deletion', accessToken, {
+      p_reason: reason || null,
+      p_include_facility: !!includeFacility,
+    });
 
   const cancel = (accessToken) => callRpc('cancel_account_deletion', accessToken, {});
 
@@ -80,6 +83,7 @@ class SndkDeletionError extends Error {
       LAST_SYSTEM_ADMIN: 'لا يمكن حذف حساب مدير النظام الوحيد. عيّن مديراً آخر أولاً من التطبيق.',
       NO_ACTIVE_REQUEST: 'لا يوجد طلب حذفٍ نشط لإلغائه.',
       AUTH_REQUIRED: 'يلزم تسجيل الدخول أولاً.',
+      FACILITY_OPTION_NOT_APPLICABLE: 'خيار حذف بيانات المرفق متاحٌ لمدير مرفقٍ يدير مرفقاً فعلياً فقط.',
     };
     if (map[this.code]) return map[this.code];
     if (this.status === 401 || this.status === 403) {
@@ -198,9 +202,26 @@ async function renderDeletionBody() {
     return;
   }
 
+  // خيار حذف المرفق يظهر فقط لمدير مرفقٍ يدير مرفقاً فعلياً — نفس شرط
+  // الخادم في request_account_deletion (FACILITY_OPTION_NOT_APPLICABLE
+  // لغيره)، هنا فقط لإخفاء خيارٍ لا معنى له عمّن لا ينطبق عليه.
+  const profile = SndkAuth.currentUser() || {};
+  const managesFacility = profile.role === 'facility_admin' && !!profile.managed_facility_id;
+
   body.innerHTML = `
     <label style="display:block;font-size:13px;color:var(--text-muted);margin-bottom:6px;">سبب الحذف (اختياري)</label>
     <textarea id="deletionReason" rows="3" style="width:100%;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-family:inherit;font-size:14px;" maxlength="1000"></textarea>
+    ${managesFacility ? `
+      <p style="font-weight:700;margin:14px 0 6px;">أنت مدير مرفق — اختر ماذا يحدث لمرفقك:</p>
+      <label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;cursor:pointer;">
+        <input type="radio" name="includeFacility" value="0" checked style="margin-top:4px;">
+        <span><strong>حذف حسابي فقط</strong><br><span class="text-muted" style="font-size:13px;">مرفقك يبقى قائماً — مدير النظام يعيّن له مديراً آخر إن أراد.</span></span>
+      </label>
+      <label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;cursor:pointer;">
+        <input type="radio" name="includeFacility" value="1" style="margin-top:4px;">
+        <span><strong>حذف حسابي وبيانات مرفقي معاً</strong><br><span class="text-muted" style="font-size:13px;">يُحذف اسم المرفق وعنوانه ووسائل تواصله وجدولاته. حجوزات مرضاك السابقة تبقى محفوظة بلا اسم المرفق، وطاقمك الآخر يبقى بحساباته قائمة بلا ارتباط بمرفق.</span></span>
+      </label>
+    ` : ''}
     <button class="btn btn-filled mt-16" id="submitDeletionBtn" style="background:var(--error);">إرسال طلب الحذف</button>
     <div id="deletionMsg" class="mt-8"></div>
   `;
@@ -208,10 +229,12 @@ async function renderDeletionBody() {
     const btn = document.getElementById('submitDeletionBtn');
     const msg = document.getElementById('deletionMsg');
     const reason = document.getElementById('deletionReason').value.trim();
+    const includeFacility = managesFacility &&
+      document.querySelector('input[name="includeFacility"]:checked')?.value === '1';
     if (!confirm('هذا الإجراء نهائي بعد انقضاء المهلة. هل تريد المتابعة؟')) return;
     btn.disabled = true;
     try {
-      await SndkAccountDeletion.request(token, reason);
+      await SndkAccountDeletion.request(token, reason, includeFacility);
       renderDeletionBody();
     } catch (e) {
       msg.innerHTML = `<p style="color:var(--error);margin:0;">${esc(e.arabicMessage || e.message)}</p>`;
