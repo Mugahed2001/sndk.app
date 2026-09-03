@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>حذف حساب للبلاد</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&display=swap">
+<style>
+  :root {
+    color-scheme: light;
+    --masthead: #0A5540;
+    --masthead-text: #FFFFFF;
+    --primary: #0E6B4E;
+    --accent: #B58A2E;
+    --ink: #1B2A24;
+    --muted: #5C6B64;
+    --ground: #F4F6F5;
+    --paper: #FFFFFF;
+    --hairline: #E2E6E4;
+    --hairline-soft: #EDF0EE;
+    --card-shadow: 0 1px 2px rgba(16,32,26,.06), 0 6px 16px rgba(16,32,26,.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --masthead: #0C3A2E;
+      --masthead-text: #E8EDEA;
+      --primary: #3FA37E;
+      --accent: #D2A94E;
+      --ink: #E8EDEA;
+      --muted: #9DAAA3;
+      --ground: #0F1512;
+      --paper: #161C19;
+      --hairline: #2A332E;
+      --hairline-soft: #202723;
+      --card-shadow: 0 8px 22px rgba(0,0,0,.45);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --masthead: #0C3A2E;
+    --masthead-text: #E8EDEA;
+    --primary: #3FA37E;
+    --accent: #D2A94E;
+    --ink: #E8EDEA;
+    --muted: #9DAAA3;
+    --ground: #0F1512;
+    --paper: #161C19;
+    --hairline: #2A332E;
+    --hairline-soft: #202723;
+    --card-shadow: 0 8px 22px rgba(0,0,0,.45);
+  }
+
+  * { box-sizing: border-box; }
+  img { max-width: 100%; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Almarai", "Segoe UI", Tahoma, "Noto Sans Arabic", sans-serif;
+    font-size: 16px;
+    line-height: 1.85;
+    direction: rtl;
+    text-align: right;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--primary); text-underline-offset: 3px; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+  .masthead {
+    background: var(--masthead);
+    color: var(--masthead-text);
+    border-bottom: 2px solid var(--accent);
+  }
+  .masthead-inner {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 22px 24px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .seal { width: 46px; height: 46px; flex: none; }
+  .seal * { stroke: currentColor; }
+  .wordmark { display: flex; flex-direction: column; gap: 1px; }
+  .wordmark b { font-weight: 800; font-size: 22px; letter-spacing: -.01em; line-height: 1.15; }
+  .wordmark span { font-size: 12px; font-weight: 700; letter-spacing: .14em; opacity: .8; }
+
+  main { max-width: 680px; margin: 0 auto; padding: 40px 24px 72px; }
+
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 8px 10px; margin-bottom: 28px;
+    font-size: 12.5px; color: var(--muted);
+  }
+  .meta span {
+    background: var(--paper); border: 1px solid var(--hairline);
+    border-radius: 999px; padding: 4px 12px; white-space: nowrap;
+  }
+
+  h1 { font-weight: 800; font-size: 27px; line-height: 1.35; margin: 0 0 14px; text-wrap: balance; }
+  .lede { font-size: 16.5px; margin: 0 0 34px; }
+
+  .sh { display: flex; align-items: center; gap: 10px; margin: 40px 0 14px; }
+  .sh::before { content: ""; width: 8px; height: 8px; flex: none; background: var(--accent); }
+  .sh h2 {
+    font-size: 12.5px; font-weight: 700; letter-spacing: .1em;
+    color: var(--muted); margin: 0; white-space: nowrap;
+  }
+  .sh::after { content: ""; flex: 1; height: 1px; background: var(--hairline); }
+
+  section > p { margin: 0 0 14px; }
+  section > p:last-child { margin-bottom: 0; }
+
+  ol.steps { counter-reset: step; list-style: none; margin: 0; padding: 0; }
+  ol.steps li {
+    position: relative;
+    background: var(--paper);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    box-shadow: var(--card-shadow);
+    padding: 14px 58px 14px 16px;
+    margin: 0 0 10px;
+  }
+  ol.steps li::before {
+    counter-increment: step;
+    content: counter(step);
+    position: absolute;
+    inset-inline-start: 14px;
+    top: 14px;
+    width: 28px; height: 28px;
+    display: grid; place-items: center;
+    background: var(--primary);
+    color: #fff;
+    border-radius: 50%;
+    font-weight: 800;
+    font-size: 14px;
+  }
+
+  ul { margin: 0 0 14px; padding-inline-start: 22px; }
+  li { margin: 6px 0; }
+  ul li::marker { color: var(--accent); }
+  strong { font-weight: 700; }
+
+  .table-wrap { overflow-x: auto; margin: 4px 0 10px; }
+  table {
+    width: 100%; border-collapse: collapse; font-size: 14px;
+    background: var(--paper); border: 1px solid var(--hairline);
+    border-radius: 8px; overflow: hidden; box-shadow: var(--card-shadow);
+  }
+  th, td {
+    text-align: right; padding: 12px 14px;
+    border-bottom: 1px solid var(--hairline-soft); vertical-align: top; line-height: 1.6;
+  }
+  thead th {
+    background: color-mix(in srgb, var(--primary) 8%, var(--paper));
+    font-weight: 700; font-size: 12.5px; letter-spacing: .04em;
+    color: var(--muted); border-bottom: 1px solid var(--hairline);
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td:first-child { font-weight: 700; }
+
+  .note {
+    border-inline-start: 3px solid var(--accent);
+    background: color-mix(in srgb, var(--accent) 9%, var(--paper));
+    border-radius: 8px; padding: 14px 16px; margin: 14px 0; font-size: 14.5px;
+  }
+  .cta {
+    display: inline-block; margin-top: 6px;
+    background: var(--primary); color: #fff;
+    font-weight: 800; text-decoration: none;
+    padding: 12px 22px; border-radius: 8px;
+  }
+  .cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  footer {
+    max-width: 680px; margin: 0 auto; padding: 26px 24px 48px;
+    border-top: 1px solid var(--hairline); color: var(--muted); font-size: 13px;
+  }
+  footer p { margin: 6px 0; }
+
+  @media (max-width: 540px) {
+    h1 { font-size: 23px; }
+    main { padding-top: 30px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <svg class="seal" viewBox="0 0 64 64" fill="none" aria-hidden="true"
+         stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="32" cy="32" r="30" stroke-width="2"></circle>
+      <circle cx="32" cy="32" r="24.5" stroke-width="1"></circle>
+      <line x1="23" y1="45" x2="29" y2="21" stroke-width="2.2"></line>
+      <line x1="41" y1="45" x2="35" y2="21" stroke-width="2.2"></line>
+      <line x1="32" y1="40" x2="32" y2="36" stroke-width="2"></line>
+      <line x1="32" y1="32" x2="32" y2="28" stroke-width="2"></line>
+      <line x1="32" y1="24" x2="32" y2="21" stroke-width="2"></line>
+      <circle cx="32" cy="45.5" r="2.6" fill="currentColor" stroke="none"></circle>
+    </svg>
+    <span class="wordmark">
+      <b>للبلاد</b>
+      <span>حذف الحساب والبيانات</span>
+    </span>
+  </div>
+</header>
+
+<main>
+  <div class="meta">
+    <span>آخر تحديث: 3 سبتمبر 2026</span>
+    <span>التطبيق: للبلاد — com.codey.yemen.albelad</span>
+    <span>المطوّر: Codey</span>
+  </div>
+
+  <h1>طلب حذف حساب «للبلاد» وبياناتك</h1>
+  <p class="lede">
+    هذه الصفحة توضّح كيف تطلب حذف حسابك في تطبيق «للبلاد» — الخاص بمطوّره
+    <strong>Codey</strong> — وما البيانات التي تُحذَف وما الذي قد يُحتفَظ به ولأي مدة.
+  </p>
+
+  <section>
+    <div class="sh"><h2>خطوات طلب الحذف</h2></div>
+    <ol class="steps">
+      <li>
+        أرسِل رسالة بريد إلكتروني إلى
+        <strong><a href="mailto:codey.yemen@gmail.com?subject=%D8%B7%D9%84%D8%A8%20%D8%AD%D8%B0%D9%81%20%D8%AD%D8%B3%D8%A7%D8%A8%20-%20%D9%84%D9%84%D8%A8%D9%84%D8%A7%D8%AF">codey.yemen@gmail.com</a></strong>
+        من العنوان أو الرقم المرتبط بحسابك، وضع في العنوان: «طلب حذف حساب – للبلاد».
+      </li>
+      <li>
+        اذكر في الرسالة: نوع حسابك (<strong>سائق</strong> أو <strong>راكب</strong>)،
+        و<strong>رقم الجوال</strong> المسجَّل في التطبيق.
+      </li>
+      <li>
+        يتحقّق فريق «للبلاد» من هويّتك (باتصال تأكيدي أو رسالة تحقّق) لمنع الحذف
+        بطلب شخص آخر.
+      </li>
+      <li>
+        بعد التأكيد، تُحذَف بياناتك الشخصية خلال <strong>30 يومًا كحدّ أقصى</strong>،
+        وتصلك رسالة تأكيد بإتمام الحذف.
+      </li>
+    </ol>
+    <p>
+      <a class="cta" href="mailto:codey.yemen@gmail.com?subject=%D8%B7%D9%84%D8%A8%20%D8%AD%D8%B0%D9%81%20%D8%AD%D8%B3%D8%A7%D8%A8%20-%20%D9%84%D9%84%D8%A8%D9%84%D8%A7%D8%AF">إرسال طلب الحذف الآن</a>
+    </p>
+  </section>
+
+  <section>
+    <div class="sh"><h2>ما الذي يُحذَف</h2></div>
+    <ul>
+      <li>الاسم الكامل ورقم الجوال ورقم واتساب.</li>
+      <li>حساب الدخول (بيانات المصادقة).</li>
+      <li>طلبات الحجز والحجوزات المرتبطة بك.</li>
+      <li>تقييماتك واقتراحاتك المرتبطة بحسابك.</li>
+      <li>للسائق: بيانات المركبة (النوع واللوحة والسعة والصورة) وآخر موقع معروف والقوالب الدائمة.</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="sh"><h2>ما الذي قد يُحتفَظ به ولأي مدة</h2></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>البيان</th><th>السبب</th><th>مدة الاحتفاظ</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>إحصاءات استخدام مجمّعة ومجهّلة</td>
+            <td>قياس الطلب على المناطق — لا تحتوي أي مُعرّف يخصّك</td>
+            <td>تبقى مجمّعةً بلا حدّ زمني</td>
+          </tr>
+          <tr>
+            <td>سجلّات لازمة قانونيًا أو لتسوية نزاع قائم</td>
+            <td>الامتثال لالتزام قانوني ساري، أو نزاع/شكوى لم تُغلَق بعد</td>
+            <td>حتى 12 شهرًا، أو حتى انتهاء الالتزام/النزاع</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      بعد انقضاء هذه المدد تُحذَف هذه السجلّات أيضًا. لا نحتفظ ببياناتك الشخصية
+      لأي غرض تسويقي بعد حذف الحساب.
+    </p>
+  </section>
+
+  <section>
+    <div class="sh"><h2>حذف جزء من البيانات دون حذف الحساب</h2></div>
+    <p>
+      يمكنك — دون حذف الحساب — إيقاف مشاركة الموقع من إعدادات التطبيق، وإزالة رقم
+      واتساب أو تعديل بيانات ملفّك. لطلب حذف عناصر أخرى مع الإبقاء على الحساب،
+      راسِلنا على البريد نفسه موضّحًا ما تريد حذفه.
+    </p>
+  </section>
+
+  <section>
+    <div class="sh"><h2>سياسة الخصوصية</h2></div>
+    <p>
+      لمزيد من التفاصيل عن البيانات التي يجمعها التطبيق وكيفية استخدامها، راجِع
+      <a href="privacy-albelad.html">سياسة خصوصية «للبلاد»</a>.
+    </p>
+  </section>
+</main>
+
+<footer>
+  <p>هذه هي صفحة طلب حذف الحساب الرسمية لتطبيق «للبلاد» (com.codey.yemen.albelad) للمطوّر Codey على Google Play.</p>
+  <p>© 2026 «للبلاد». جميع الحقوق محفوظة.</p>
+</footer>
+
+</body>
+</html>

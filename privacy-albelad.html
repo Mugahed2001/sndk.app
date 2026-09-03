@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>سياسة خصوصية للبلاد</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&display=swap">
+<style>
+  :root {
+    color-scheme: light;
+    --masthead: #0A5540;
+    --masthead-text: #FFFFFF;
+    --primary: #0E6B4E;
+    --accent: #B58A2E;
+    --ink: #1B2A24;
+    --muted: #5C6B64;
+    --ground: #F4F6F5;
+    --paper: #FFFFFF;
+    --hairline: #E2E6E4;
+    --hairline-soft: #EDF0EE;
+    --info: #1E5A8A;
+    --card-shadow: 0 1px 2px rgba(16,32,26,.06), 0 6px 16px rgba(16,32,26,.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --masthead: #0C3A2E;
+      --masthead-text: #E8EDEA;
+      --primary: #3FA37E;
+      --accent: #D2A94E;
+      --ink: #E8EDEA;
+      --muted: #9DAAA3;
+      --ground: #0F1512;
+      --paper: #161C19;
+      --hairline: #2A332E;
+      --hairline-soft: #202723;
+      --info: #6EA8D8;
+      --card-shadow: 0 8px 22px rgba(0,0,0,.45);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --masthead: #0C3A2E;
+    --masthead-text: #E8EDEA;
+    --primary: #3FA37E;
+    --accent: #D2A94E;
+    --ink: #E8EDEA;
+    --muted: #9DAAA3;
+    --ground: #0F1512;
+    --paper: #161C19;
+    --hairline: #2A332E;
+    --hairline-soft: #202723;
+    --info: #6EA8D8;
+    --card-shadow: 0 8px 22px rgba(0,0,0,.45);
+  }
+
+  * { box-sizing: border-box; }
+  img { max-width: 100%; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Almarai", "Segoe UI", Tahoma, "Noto Sans Arabic", sans-serif;
+    font-size: 16px;
+    line-height: 1.85;
+    direction: rtl;
+    text-align: right;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--primary); text-underline-offset: 3px; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+  /* ===== الترويسة الرسمية: شريط أخضر مصمت + خطّ ذهبي سفلي (كترويسة التطبيق) ===== */
+  .masthead {
+    background: var(--masthead);
+    color: var(--masthead-text);
+    border-bottom: 2px solid var(--accent);
+  }
+  .masthead-inner {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 22px 24px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .seal { width: 46px; height: 46px; flex: none; }
+  .seal * { stroke: currentColor; }
+  .wordmark { display: flex; flex-direction: column; gap: 1px; }
+  .wordmark b {
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: -.01em;
+    line-height: 1.15;
+  }
+  .wordmark span {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    opacity: .8;
+  }
+
+  /* ===== المحتوى ===== */
+  main {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 40px 24px 72px;
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    margin-bottom: 28px;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .meta span {
+    background: var(--paper);
+    border: 1px solid var(--hairline);
+    border-radius: 999px;
+    padding: 4px 12px;
+    white-space: nowrap;
+  }
+
+  h1 {
+    font-weight: 800;
+    font-size: 27px;
+    line-height: 1.35;
+    margin: 0 0 14px;
+    text-wrap: balance;
+  }
+  .lede {
+    font-size: 16.5px;
+    color: var(--ink);
+    margin: 0 0 34px;
+  }
+
+  /* رأس القسم: مربّع ذهبي + عنوان + خطّ رفيع يملأ البقية (مطابق لـ SectionHeader) */
+  .sh {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 40px 0 14px;
+  }
+  .sh::before {
+    content: "";
+    width: 8px; height: 8px; flex: none;
+    background: var(--accent);
+  }
+  .sh h2 {
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    color: var(--muted);
+    margin: 0;
+    white-space: nowrap;
+  }
+  .sh::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--hairline);
+  }
+
+  section > p { margin: 0 0 14px; }
+  section > p:last-child { margin-bottom: 0; }
+
+  ul { margin: 0 0 14px; padding-inline-start: 22px; }
+  li { margin: 6px 0; }
+  li::marker { color: var(--accent); }
+
+  strong { font-weight: 700; }
+
+  .card {
+    background: var(--paper);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    box-shadow: var(--card-shadow);
+    padding: 6px 18px;
+    margin: 4px 0 8px;
+  }
+
+  /* جدول البيانات المُجمَّعة */
+  .table-wrap { overflow-x: auto; margin: 4px 0 10px; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    background: var(--paper);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--card-shadow);
+  }
+  th, td {
+    text-align: right;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--hairline-soft);
+    vertical-align: top;
+    line-height: 1.6;
+  }
+  thead th {
+    background: color-mix(in srgb, var(--primary) 8%, var(--paper));
+    font-weight: 700;
+    font-size: 12.5px;
+    letter-spacing: .04em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--hairline);
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td:first-child { font-weight: 700; white-space: nowrap; }
+
+  .note {
+    border-inline-start: 3px solid var(--accent);
+    background: color-mix(in srgb, var(--accent) 9%, var(--paper));
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 14px 0;
+    font-size: 14.5px;
+  }
+  .note strong { color: var(--ink); }
+
+  footer {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 26px 24px 48px;
+    border-top: 1px solid var(--hairline);
+    color: var(--muted);
+    font-size: 13px;
+  }
+  footer p { margin: 6px 0; }
+
+  @media (max-width: 540px) {
+    h1 { font-size: 23px; }
+    main { padding-top: 30px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <svg class="seal" viewBox="0 0 64 64" fill="none" aria-hidden="true"
+         stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="32" cy="32" r="30" stroke-width="2"></circle>
+      <circle cx="32" cy="32" r="24.5" stroke-width="1"></circle>
+      <line x1="23" y1="45" x2="29" y2="21" stroke-width="2.2"></line>
+      <line x1="41" y1="45" x2="35" y2="21" stroke-width="2.2"></line>
+      <line x1="32" y1="40" x2="32" y2="36" stroke-width="2"></line>
+      <line x1="32" y1="32" x2="32" y2="28" stroke-width="2"></line>
+      <line x1="32" y1="24" x2="32" y2="21" stroke-width="2"></line>
+      <circle cx="32" cy="45.5" r="2.6" fill="currentColor" stroke="none"></circle>
+    </svg>
+    <span class="wordmark">
+      <b>للبلاد</b>
+      <span>سياسة الخصوصية</span>
+    </span>
+  </div>
+</header>
+
+<main>
+  <div class="meta">
+    <span>آخر تحديث: 3 سبتمبر 2026</span>
+    <span>نطاق التطبيق: com.codey.yemen.albelad</span>
+    <span>المنصّة: Android</span>
+  </div>
+
+  <h1>سياسة خصوصية تطبيق «للبلاد»</h1>
+  <p class="lede">
+    تطبيق «للبلاد» ينظّم حركة النقل المحلي بين مناطق حضرموت: يبحث الراكب عن الباصات
+    التي ستمرّ من منطقته ويتواصل مع السائق مباشرةً، ويدير السائق رحلاته ومقاعده.
+    هذه الصفحة تشرح — بوضوح ودون لغة زائدة — ما البيانات التي يجمعها التطبيق، ولماذا،
+    ومن يراها، وكيف تتحكّم فيها.
+  </p>
+
+  <section>
+    <div class="sh"><h2>ملخّص سريع</h2></div>
+    <div class="card">
+      <ul>
+        <li>لا نبيع بياناتك ولا نعرض إعلانات.</li>
+        <li>موقع السائق الحيّ يُشارَك مع ركّاب رحلته فقط، وحين يُفعّل السائق المشاركة ويكون لديه رحلة نشطة.</li>
+        <li>نحتفظ بآخر موقع معروف للسائق فقط — لا سجلّ تحرّكات تاريخيًّا.</li>
+        <li>الحساب يعتمد رقم الجوال والاسم؛ توثيق الرقم يتمّ يدويًا عبر الإدارة.</li>
+        <li>لا يحتوي التطبيق ميزات مالية أو صحّية أو حكومية.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sh"><h2>البيانات التي نجمعها</h2></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>البيان</th><th>الغرض</th><th>من يراه</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>الاسم الكامل</td>
+            <td>تعريف الحساب وعرضه للطرف الآخر عند التواصل</td>
+            <td>الإدارة، والطرف المقابل في الرحلة/الطلب</td>
+          </tr>
+          <tr>
+            <td>رقم الجوال</td>
+            <td>تسجيل الدخول، توثيق الحساب، اتصال السائق بالراكب لتأكيد الحجز</td>
+            <td>الإدارة، وسائق الرحلة عند إرسال طلب حجز</td>
+          </tr>
+          <tr>
+            <td>رقم واتساب <span style="color:var(--muted)">(اختياري)</span></td>
+            <td>فتح محادثة واتساب مع السائق عند اختيار المستخدم ذلك</td>
+            <td>الطرف المقابل عند بدء المحادثة</td>
+          </tr>
+          <tr>
+            <td>الموقع الجغرافي — السائق</td>
+            <td>بثّ موقع الباص الحيّ لركّاب الرحلة أثناء سيرها</td>
+            <td>ركّاب الرحلة النشطة، والإدارة</td>
+          </tr>
+          <tr>
+            <td>الموقع الجغرافي — الراكب <span style="color:var(--muted)">(عند الإذن)</span></td>
+            <td>حساب بُعد الباص عنك، وتحديد نقطة نزولك على الخريطة</td>
+            <td>يبقى على جهازك؛ لا يُرسَل إلا نقطة النزول التي تختارها ضمن طلب الحجز</td>
+          </tr>
+          <tr>
+            <td>بيانات المركبة (السائق)</td>
+            <td>عرض نوع الباص ولوحته وسعته وصورته للركّاب</td>
+            <td>الركّاب علنًا ضمن نتائج البحث</td>
+          </tr>
+          <tr>
+            <td>طلبات الحجز والحجوزات</td>
+            <td>ربط الراكب بالرحلة، إدارة المقاعد، تأكيد الصعود</td>
+            <td>سائق الرحلة والإدارة</td>
+          </tr>
+          <tr>
+            <td>التقييمات والاقتراحات</td>
+            <td>تحسين جودة الخدمة وترتيب نتائج البحث</td>
+            <td>تُعرَض دون كشف هويّة صاحبها</td>
+          </tr>
+          <tr>
+            <td>أحداث استخدام مجهّلة</td>
+            <td>عمليات بحث ونقرات تواصل — لقياس الطلب على المناطق فقط</td>
+            <td>الإدارة، مرتبطة بمعرّف جهاز مجهول لا بهويّتك</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      لا نجمع جهات اتصالك، ولا رسائلك، ولا صورك (سوى صورة المركبة التي يرفعها السائق
+      طوعًا)، ولا أي مُعرّفات إعلانية.
+    </p>
+  </section>
+
+  <section>
+    <div class="sh"><h2>كيف نستخدم البيانات</h2></div>
+    <p>نستخدم ما سبق حصرًا في تشغيل الخدمة:</p>
+    <ul>
+      <li>إظهار الرحلات المناسبة لمنطقتك، وتمكين التواصل المباشر بين الراكب والسائق.</li>
+      <li>عرض موقع الباص الحيّ ووقت الوصول التقريبي لركّاب الرحلة.</li>
+      <li>إدارة طلبات الحجز والمقاعد وحالة الرحلة.</li>
+      <li>توثيق أرقام الهواتف يدويًا لحماية الطرفين من الحسابات الوهمية.</li>
+      <li>قياس الطلب على المناطق لاتّخاذ قرارات تشغيلية (توسيع تغطية خطّ مثلًا).</li>
+    </ul>
+    <p>لا نتّخذ قرارات آليّة ذات أثر قانوني عليك، ولا نبني ملفّات إعلانية.</p>
+  </section>
+
+  <section>
+    <div class="sh"><h2>مشاركة البيانات</h2></div>
+    <p>لا نبيع بياناتك ولا نؤجّرها. تُشارَك فقط في الحدود التالية:</p>
+    <ul>
+      <li><strong>بين طرفَي الرحلة:</strong> الاسم ورقم الجوال وتفاصيل الطلب تظهر لسائق الرحلة عند إرسالك طلب حجز؛ وموقع الباص الحيّ يظهر لركّاب تلك الرحلة.</li>
+      <li><strong>مع إدارة التطبيق:</strong> للتوثيق والدعم وإدارة الرحلات والمكاتب.</li>
+      <li><strong>مزوّدو خدمة تقنيون</strong> (انظر «أطراف ثالثة») — بالحدّ الأدنى اللازم لتشغيل الخريطة والمسارات والاستضافة.</li>
+      <li><strong>عند إلزام قانوني</strong> ساري المفعول في الجمهورية اليمنية.</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="sh"><h2>الاحتفاظ والحذف</h2></div>
+    <ul>
+      <li><strong>موقع السائق:</strong> يُخزَّن آخر موقع فقط (صفّ واحد لكل سائق)، ويتوقّف بثّه فور انتهاء الرحلة أو إيقاف السائق للمشاركة.</li>
+      <li><strong>بيانات الحساب والرحلات:</strong> تُحفَظ ما دام حسابك قائمًا ولأغراض السجلّ التشغيلي المعقول بعده.</li>
+      <li><strong>أحداث الاستخدام المجهّلة:</strong> تُحفَظ مجمّعةً لأغراض إحصائية.</li>
+    </ul>
+    <div class="note">
+      <strong>حذف حسابك وبياناتك:</strong> راسِلنا على البريد أدناه من الرقم/البريد المرتبط
+      بحسابك، وسنحذف بياناتك الشخصية خلال مدة معقولة، عدا ما يلزم الاحتفاظ به قانونًا أو
+      لتسوية نزاع قائم.
+    </div>
+  </section>
+
+  <section>
+    <div class="sh"><h2>أمان البيانات</h2></div>
+    <p>
+      يُنقَل الاتصال بخوادمنا عبر HTTPS مشفّرًا. الوصول إلى البيانات محكوم بقواعد صلاحيات
+      على مستوى قاعدة البيانات: لا يرى السائق إلا رحلاته وركّابه، ولا يرى الراكب بيانات
+      حسّاسة، وصلاحية بثّ الموقع مقيّدة خادميًّا برحلة نشطة ومشاركة مفعّلة. لا يوجد أي
+      مفتاح إداري كامل داخل التطبيق نفسه.
+    </p>
+  </section>
+
+  <section>
+    <div class="sh"><h2>أطراف ثالثة</h2></div>
+    <ul>
+      <li><strong>Supabase</strong> — استضافة قاعدة البيانات والمصادقة.</li>
+      <li><strong>OpenStreetMap</strong> — بلاطات الخريطة (يستقبل خادمها طلبات عرض المناطق التي تتصفّحها).</li>
+      <li><strong>OpenRouteService</strong> — حساب المسارات والاتجاهات؛ يُرسَل إليه إحداثيات نقطتَي البداية والوجهة فقط، لا هويّتك.</li>
+      <li><strong>WhatsApp</strong> — عند اختيارك «واتساب»، يفتح التطبيق محادثةً في تطبيق واتساب على جهازك؛ نحن لا نرسل بياناتك إلى واتساب.</li>
+    </ul>
+    <p>تخضع بياناتك لدى هؤلاء لسياسات الخصوصية الخاصة بكلٍّ منهم.</p>
+  </section>
+
+  <section>
+    <div class="sh"><h2>الأطفال</h2></div>
+    <p>
+      التطبيق موجَّه للبالغين (18 عامًا فأكثر) من سائقين وركّاب، وليس مخصّصًا للأطفال،
+      ولا نجمع عن قصد بيانات ممّن هم دون هذه السنّ.
+    </p>
+  </section>
+
+  <section>
+    <div class="sh"><h2>حقوقك</h2></div>
+    <ul>
+      <li>الاطّلاع على بياناتك الشخصية وتصحيحها.</li>
+      <li>حذف حسابك وبياناتك (انظر أعلاه).</li>
+      <li>إيقاف مشاركة الموقع في أي وقت من إعدادات التطبيق.</li>
+      <li>سحب رقم واتساب أو تعديل بيانات ملفّك.</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="sh"><h2>تغييرات على هذه السياسة</h2></div>
+    <p>
+      قد نحدّث هذه الصفحة عند إضافة ميزة تمسّ البيانات. يظهر تاريخ آخر تحديث أعلى الصفحة،
+      والاستمرار في استخدام التطبيق بعد التحديث يعني الموافقة على النسخة السارية.
+    </p>
+  </section>
+
+  <section>
+    <div class="sh"><h2>التواصل</h2></div>
+    <p>
+      لأي سؤال عن الخصوصية أو طلب حذف بيانات:
+    </p>
+    <div class="note">
+      البريد: <strong><a href="mailto:codey.yemen@gmail.com">codey.yemen@gmail.com</a></strong><br>
+      جهة التشغيل: إدارة تطبيق «للبلاد» — حضرموت، الجمهورية اليمنية.
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>هذه الصفحة هي سياسة الخصوصية الرسمية لتطبيق «للبلاد» (com.codey.yemen.albelad) على Google Play.</p>
+  <p>© 2026 «للبلاد». جميع الحقوق محفوظة.</p>
+</footer>
+
+</body>
+</html>
