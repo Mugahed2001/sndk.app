@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>مختبرو تطبيق للبلاد</title>
+<style>img{max-width:100%}[hidden]{display:none!important}body{margin:0}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400;500;600;700&family=Almarai:wght@300;400;700;800&display=swap">
+<style>
+  :root{
+    --ground:#F5F4EF; --paper:#FFFFFF; --ink:#1B2A24; --muted:#5C6B64;
+    --green:#0E6B4E; --masthead:#0A5540; --gold:#B58A2E; --hair:#DDDCd2;
+    --shadow:rgba(27,42,36,.14);
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0F1512; --paper:#161C19; --ink:#E8EEE9; --muted:#93A39B;
+      --green:#3FA37E; --masthead:#0C3B2E; --gold:#D2A94E; --hair:#26302B;
+      --shadow:rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0F1512; --paper:#161C19; --ink:#E8EEE9; --muted:#93A39B;
+    --green:#3FA37E; --masthead:#0C3B2E; --gold:#D2A94E; --hair:#26302B;
+    --shadow:rgba(0,0,0,.5);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--ground); color:var(--ink);
+    font-family:"Almarai",system-ui,"Segoe UI",Tahoma,sans-serif;
+    direction:rtl; line-height:1.75; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:880px; margin:0 auto; padding:28px 20px 64px}
+  h1,h2,h3{font-family:"Reem Kufi","Almarai",sans-serif; font-weight:600; line-height:1.3; text-wrap:balance; margin:0}
+
+  .hero{text-align:center; padding:34px 18px 30px}
+  .seal{width:76px; height:76px; color:var(--green); margin-bottom:14px}
+  .hero h1{font-size:2.55rem; letter-spacing:.5px}
+  .kicker{color:var(--gold); font-weight:700; font-size:.82rem; letter-spacing:2.5px; margin-bottom:16px}
+  .lead{max-width:52ch; margin:14px auto 0; color:var(--muted); font-size:1.05rem}
+  .tag{
+    display:inline-block; margin-top:22px; padding:9px 20px;
+    background:var(--masthead); color:#fff; border-radius:999px;
+    font-weight:700; font-size:.95rem; box-shadow:3px 3px 0 var(--shadow);
+  }
+
+  .card{
+    background:var(--paper); border:1px solid var(--hair); border-radius:14px;
+    padding:24px 22px; box-shadow:4px 4px 0 var(--shadow);
+  }
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:34px}
+  @media(max-width:640px){ .grid2{grid-template-columns:1fr} .hero h1{font-size:2.1rem} }
+
+  .sect-h{display:flex; align-items:center; gap:10px; margin-bottom:14px}
+  .sect-h::before{content:""; width:12px; height:12px; background:var(--gold); flex:none; border-radius:2px}
+  .sect-h h2{font-size:1.28rem}
+
+  ul.pts{list-style:none; margin:0; padding:0}
+  ul.pts li{position:relative; padding:6px 22px 6px 0; color:var(--ink)}
+  ul.pts li::before{
+    content:""; position:absolute; right:4px; top:15px; width:8px; height:8px;
+    background:var(--green); border-radius:50%;
+  }
+
+  .steps{counter-reset:s; list-style:none; margin:16px 0 0; padding:0; display:grid; gap:12px}
+  .steps li{position:relative; padding:4px 46px 4px 0; color:var(--muted)}
+  .steps li strong{color:var(--ink); font-weight:700}
+  .steps li::before{
+    counter-increment:s; content:counter(s);
+    position:absolute; right:0; top:2px; width:30px; height:30px;
+    display:grid; place-items:center; border-radius:50%;
+    background:var(--green); color:#fff; font-family:"Reem Kufi",sans-serif; font-weight:600; font-size:.95rem;
+  }
+
+  .apply{margin-top:20px}
+  form{display:flex; flex-direction:column; gap:12px}
+  label{font-weight:700; font-size:.95rem}
+  input[type=email]{
+    width:100%; padding:14px 16px; font:inherit; color:var(--ink);
+    background:var(--ground); border:1px solid var(--hair); border-radius:10px;
+  }
+  input[type=email]:focus{outline:2px solid var(--green); outline-offset:1px; border-color:var(--green)}
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:9px;
+    padding:14px 22px; border:none; border-radius:10px; cursor:pointer;
+    font:inherit; font-weight:800; text-decoration:none;
+    box-shadow:3px 3px 0 var(--shadow); transition:transform .06s ease;
+  }
+  .btn:active{transform:translate(2px,2px); box-shadow:1px 1px 0 var(--shadow)}
+  .btn-wa{background:#1FA855; color:#fff}
+  .btn-ghost{background:var(--paper); color:var(--green); border:1px solid var(--green); box-shadow:none}
+  .btn svg{width:20px; height:20px; flex:none}
+  .hint{font-size:.85rem; color:var(--muted); margin:2px 0 0}
+  .err{color:#c0392b; font-size:.88rem; font-weight:700; margin:0}
+  .or{text-align:center; color:var(--muted); font-size:.85rem; margin:18px 0 12px; letter-spacing:1px}
+
+  footer{text-align:center; margin-top:44px; color:var(--muted); font-size:.85rem}
+  footer a{color:var(--green)}
+  .num{direction:ltr; unicode-bidi:embed; font-weight:700}
+
+  @media (prefers-reduced-motion:reduce){ .btn{transition:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <svg class="seal" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <circle cx="32" cy="32" r="30"/>
+      <circle cx="32" cy="32" r="24.5" stroke-width="1"/>
+      <path d="M23 45 L29 21" stroke-width="2.2"/>
+      <path d="M41 45 L35 21" stroke-width="2.2"/>
+      <path d="M32 40 L32 36 M32 32 L32 28 M32 24 L32 21" stroke-width="2"/>
+      <circle cx="32" cy="45.5" r="2.6" fill="currentColor" stroke="none"/>
+    </svg>
+    <p class="kicker">دعوة مبكرة للاختبار</p>
+    <h1>للبلاد</h1>
+    <p class="lead">
+      تطبيقٌ ينظّم رحلات الباصات بين مديريات حضرموت: تعرف الرحلة القادمة من منطقتك،
+      وموعدها ووجهتها ومقاعدها، وتتابع الباص على الخريطة، وتصل بالسائق مباشرةً — دون وسيط.
+    </p>
+    <span class="tag">كن من أوائل المختبرين ✦</span>
+  </header>
+
+  <div class="grid2">
+    <section class="card">
+      <div class="sect-h"><h2>للمسافر</h2></div>
+      <ul class="pts">
+        <li>ابحث عن الباصات التي ستمرّ من منطقتك اليوم</li>
+        <li>اعرف الموعد والوجهة وعدد المقاعد المتاحة قبل أن تخرج</li>
+        <li>تابع موقع الباص الحيّ على الخريطة ووقت وصوله التقريبي</li>
+        <li>تواصل مع السائق مباشرةً لتأكيد مقعدك</li>
+        <li>احفظ حجوزاتك وراجعها في مكان واحد</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <div class="sect-h"><h2>للسائق</h2></div>
+      <ul class="pts">
+        <li>أنشئ رحلاتك ومحطاتها ومواعيدها في دقائق</li>
+        <li>رحلات دائمة تتكرّر تلقائيًا من قالبٍ واحد</li>
+        <li>نظّم مقاعدك وركّابك وطلبات الحجز في شاشة واحدة</li>
+        <li>ملاحة «التحرّكة» الصوتية تُرشدك خطوةً بخطوة</li>
+        <li>شارك موقعك الحيّ مع ركّاب رحلتك ليعرفوا متى تصل</li>
+      </ul>
+    </section>
+  </div>
+
+  <section class="card" style="margin-top:22px">
+    <div class="sect-h"><h2>كيف تصبح مختبرًا؟</h2></div>
+    <ol class="steps">
+      <li><strong>اكتب بريدك الإلكتروني</strong> في الحقل أدناه — وليكن نفس بريد حساب Google على هاتفك.</li>
+      <li><strong>اضغط «أرسل عبر واتساب»</strong> فتُفتح محادثةٌ مع فريق «للبلاد» ورسالةٌ جاهزة تحمل بريدك.</li>
+      <li><strong>أرسل الرسالة كما هي.</strong> نضيف بريدك إلى قائمة المختبرين خلال ساعات.</li>
+      <li><strong>يصلك رابط التثبيت</strong> من Google Play، فتُجرّب التطبيق كاملًا وترسل ملاحظاتك.</li>
+    </ol>
+
+    <div class="apply">
+      <form id="form" novalidate>
+        <label for="email">بريدك الإلكتروني</label>
+        <input id="email" type="email" inputmode="email" autocomplete="email"
+               placeholder="name@gmail.com" dir="ltr">
+        <p class="err" id="err" hidden>الرجاء إدخال بريد إلكتروني صحيح.</p>
+        <a class="btn btn-wa" id="wa" href="#" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.99.58 3.85 1.6 5.42L2 22l4.79-1.25a9.87 9.87 0 0 0 5.25 1.5h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.02A9.86 9.86 0 0 0 12.04 2Zm5.8 14.13c-.24.68-1.4 1.3-1.94 1.35-.5.05-.97.24-3.27-.68-2.77-1.09-4.53-3.92-4.67-4.1-.14-.19-1.11-1.48-1.11-2.82 0-1.34.7-2 .95-2.27.24-.27.53-.34.71-.34.18 0 .36 0 .51.01.16.01.38-.06.6.46.24.55.79 1.9.86 2.04.07.14.12.3.02.49-.09.19-.14.3-.28.46-.14.16-.29.36-.42.48-.14.14-.29.29-.12.57.17.28.75 1.24 1.61 2 1.11.99 2.05 1.29 2.33 1.44.28.14.44.12.6-.07.16-.19.69-.8.87-1.08.18-.28.36-.23.6-.14.24.09 1.55.73 1.82.87.27.14.44.21.51.32.07.12.07.68-.17 1.36Z"/></svg>
+          أرسل عبر واتساب
+        </a>
+        <p class="hint">نستخدم بريدك فقط لإضافتك إلى اختبار Google Play. لا رسائل دعائية.</p>
+      </form>
+
+      <p class="or">— أو —</p>
+      <a class="btn btn-ghost" id="wa-plain" href="#" target="_blank" rel="noopener" style="width:100%">
+        تواصل مباشرةً مع الفريق عبر واتساب
+      </a>
+      <p class="hint" style="text-align:center; margin-top:8px">
+        رقم الفريق: <span class="num">+966&nbsp;50&nbsp;156&nbsp;2195</span>
+      </p>
+
+      <a class="btn btn-ghost" href="https://chat.whatsapp.com/IewYcofb4BE1i3DdfxiuTM"
+         target="_blank" rel="noopener" style="width:100%; margin-top:14px">
+        انضمّ إلى مجموعة «للبلاد» على واتساب
+      </a>
+      <p class="hint" style="text-align:center; margin-top:8px">تابع أخبار الاختبار والتحديثات أوّلًا بأوّل.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>«للبلاد» — تطوير <strong>Codey</strong> · حضرموت، اليمن</p>
+    <p><a href="privacy-albelad.html">سياسة الخصوصية</a> · <a href="delete-account-albelad.html">حذف الحساب</a></p>
+  </footer>
+
+</div>
+
+<script>
+  var NUM = "966501562195";
+  var email = document.getElementById("email");
+  var wa = document.getElementById("wa");
+  var waPlain = document.getElementById("wa-plain");
+  var err = document.getElementById("err");
+  var form = document.getElementById("form");
+
+  function validEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+
+  function build(){
+    var e = email.value.trim();
+    var msg = "السلام عليكم،\n"
+            + "أرغب أن أكون مختبرًا لتطبيق «للبلاد».\n"
+            + "بريدي الإلكتروني: " + (e ? e : "(اكتب بريدك هنا)");
+    wa.href = "https://wa.me/" + NUM + "?text=" + encodeURIComponent(msg);
+  }
+
+  waPlain.href = "https://wa.me/" + NUM + "?text=" +
+    encodeURIComponent("السلام عليكم، أرغب أن أكون مختبرًا لتطبيق «للبلاد».");
+
+  email.addEventListener("input", function(){ err.hidden = true; build(); });
+  build();
+
+  form.addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var e = email.value.trim();
+    if(!validEmail(e)){ err.hidden = false; email.focus(); return; }
+    err.hidden = true;
+    build();
+    window.open(wa.href, "_blank", "noopener");
+  });
+</script>
+</body>
+</html>
