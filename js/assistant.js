@@ -71,6 +71,47 @@ const SndkAssistant = (() => {
   function pushTyping() { messages.push({ role: 'bot', html: '<span class="asst-typing"><span></span><span></span><span></span></span>', typing: true }); renderMessages(); }
   function popTyping() { if (messages.length && messages[messages.length - 1].typing) messages.pop(); }
 
+  function linkBtn(href, label) {
+    return `<a class="btn btn-sm btn-outline" href="${esc(href)}">${esc(label)}</a>`;
+  }
+  function actionsRow(html) {
+    return `<div class="row wrap gap-8 mt-8">${html}</div>`;
+  }
+
+  // بحث مبسّط بلا أي ذكاء اصطناعي (بحث نصّي مباشر عبر get-doctors/
+  // get-facilities) — يعمل دائماً بلا تكلفة API، ويُستعمَل بديلاً كلما تعذّر
+  // الوصول للمساعد الذكي (رصيد منتهٍ، حدّ يومي، أو عطل مؤقت) بدل توقّف
+  // المساعد عن أي فائدة.
+  async function fallbackSearch(text) {
+    const q = text.trim().slice(0, 80);
+    if (!q) return 'جرّب كتابة اسم طبيب أو مستشفى تبحث عنه.';
+
+    let doctors = [];
+    let facilities = [];
+    try {
+      const results = await withTimeout(Promise.all([
+        SndkApi.getData('get-doctors', { query: { q, limit: 5 } }).catch(() => []),
+        SndkApi.getData('get-facilities', { query: { q, limit: 5 } }).catch(() => []),
+      ]));
+      doctors = Array.isArray(results[0]) ? results[0] : [];
+      facilities = Array.isArray(results[1]) ? results[1] : [];
+    } catch (_) { /* استمرّ بلا نتائج بدل رسالة خطأ ثانية */ }
+
+    if (doctors.length === 0 && facilities.length === 0) {
+      return `لا نتائج مطابقة لـ«${esc(q)}» في البحث المبسّط. تصفّح الموقع مباشرة من ${linkBtn(`${sndkBasePath()}/doctors`, 'الأطباء')} أو ${linkBtn(`${sndkBasePath()}/facilities`, 'المرافق')}.`;
+    }
+
+    const parts = [];
+    if (doctors.length) parts.push(`أطباء: ${doctors.map((d) => esc(d.name)).join('، ')}`);
+    if (facilities.length) parts.push(`مرافق: ${facilities.map((f) => esc(f.name)).join('، ')}`);
+    const buttons = [
+      ...doctors.map((d) => linkBtn(`${sndkBasePath()}/doctor/${encodeURIComponent(d.id)}`, d.name)),
+      ...facilities.map((f) => linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(f.id)}`, f.name)),
+    ].join('');
+
+    return `${parts.join(' — ')}.` + actionsRow(buttons);
+  }
+
   async function submit(text) {
     const trimmed = (text || '').trim();
     if (!trimmed || sending) return;
@@ -96,13 +137,15 @@ const SndkAssistant = (() => {
       if (!decoded || decoded.success !== true) {
         apiHistory.pop(); // لا نُبقي سؤالاً بلا ردّ في السياق المُرسَل لاحقاً
         const code = decoded && decoded.code;
-        if (code === 'RATE_LIMITED') {
-          pushBot('وصلت الحدّ الأقصى للأسئلة اليوم — جرّب مرة أخرى غداً، أو تصفّح الموقع مباشرة.');
-        } else if (code === 'AI_UNCONFIGURED') {
-          pushBot('المساعد غير مُفعَّل بعد على هذا الموقع — جرّب لاحقاً.');
-        } else {
-          pushBot('تعذّر تنفيذ طلبك حالياً. حاول مرة أخرى بعد قليل.');
-        }
+        const prefix = code === 'RATE_LIMITED'
+          ? 'وصلت الحدّ الأقصى للأسئلة الذكية اليوم.'
+          : code === 'AI_UNCONFIGURED'
+            ? 'المساعد الذكي غير مُفعَّل حالياً.'
+            : 'تعذّر الوصول للمساعد الذكي الآن.';
+        pushTyping();
+        const fallback = await fallbackSearch(trimmed);
+        popTyping();
+        pushBot(`${prefix} إليك بحث مبسّط بدلاً منه: ${fallback}`);
         return;
       }
 
@@ -112,10 +155,10 @@ const SndkAssistant = (() => {
     } catch (err) {
       popTyping();
       apiHistory.pop();
-      const offline = err && err.message === 'TIMEOUT';
-      pushBot(offline
-        ? 'يبدو أن الاتصال ضعيف جداً الآن — حاول مرة أخرى بعد قليل.'
-        : 'تعذّر تنفيذ طلبك حالياً. حاول مرة أخرى بعد قليل.');
+      pushTyping();
+      const fallback = await fallbackSearch(trimmed);
+      popTyping();
+      pushBot(`تعذّر الوصول للمساعد الذكي الآن. إليك بحث مبسّط بدلاً منه: ${fallback}`);
     } finally {
       sending = false;
     }
