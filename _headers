@@ -1,0 +1,11 @@
+# لا بناء هنا — كل ملف .js/.html يُخدَم بنفس الاسم في كل نشرة، فبلا هذه
+# الترويسة قد يُبقي المتصفح نسخة قديمة من ملفٍ (routing.js مثلاً) مخبَّأة
+# بينما يجلب ملفاً آخر جديداً يعتمد عليها (facilities.js) — يسبّب أخطاءً مثل
+# "sndkPrettifyUrl is not defined" بعد نشرة تُغيّر الملفين معاً.
+# no-cache = يُعاد التحقق من الخادم في كل مرة (304 عادة) لا تحميل كامل جديد.
+/*.js
+  Cache-Control: no-cache
+/*.html
+  Cache-Control: no-cache
+/*.css
+  Cache-Control: no-cache
