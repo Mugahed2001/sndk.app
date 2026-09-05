@@ -64,15 +64,30 @@ const SndkAssistant = (() => {
     return specialtiesCache;
   }
 
-  function findSpecialtyInText(normalizedText, specialties) {
-    let best = null;
+  // مطابقة مرتّبة بمستويات (تامّة → بادئة → احتواء) بدل أول تطابق يُصادَف —
+  // نفس أسلوب _matchRegion في lib/utils/trip_query_parser.dart (تطبيق
+  // البلاد): لو التبس النص بين أكثر من تخصص بلا ترجيح واضح، لا نخمّن أحدهم —
+  // نُعيد كل المرشّحين ليختار المستخدم بنفسه بدل نتيجة قد تكون خاطئة.
+  function matchSpecialties(normalizedText, specialties) {
+    const exact = [];
+    const prefix = [];
+    const contains = [];
+
     for (const s of specialties) {
       const name = normalize(s.arabic_name || s.name || '');
-      if (name.length >= 3 && normalizedText.includes(name)) {
-        if (!best || name.length > normalize(best.arabic_name || best.name || '').length) best = s;
-      }
+      if (name.length < 3) continue;
+      if (normalizedText === name) exact.push(s);
+      else if (normalizedText.startsWith(name) || name.startsWith(normalizedText)) prefix.push(s);
+      else if (normalizedText.includes(name)) contains.push(s);
     }
-    return best;
+
+    const ranked = [...exact, ...prefix, ...contains];
+    if (ranked.length === 0) return { best: null, candidates: [] };
+    if (exact.length === 1) return { best: exact[0], candidates: [] };
+    if (ranked.length === 1) return { best: ranked[0], candidates: [] };
+    if (exact.length === 0 && prefix.length === 1) return { best: prefix[0], candidates: [] };
+    // أكثر من مرشّح بلا ترجيح واضح — يُطلَب من المستخدم التحديد.
+    return { best: null, candidates: ranked.slice(0, 5) };
   }
 
   function stripKnownWords(normalizedText, words) {
@@ -174,24 +189,37 @@ const SndkAssistant = (() => {
 
   async function intentDoctors(n) {
     const specialties = await loadSpecialties();
-    const matchedSpecialty = findSpecialtyInText(n, specialties);
-    const q = matchedSpecialty ? '' : stripKnownWords(n, [...NOISE_WORDS, ...DOCTOR_WORDS]);
+    const match = matchSpecialties(n, specialties);
 
+    if (match.candidates.length > 1) {
+      popTyping();
+      pushBot(
+        'أكثر من تخصص يطابق كلامك — أيّهم تقصد؟'
+        + actionsRow(match.candidates.map((s) => actionBtn(`specialty:${s.id}`, s.arabic_name || s.name)).join('')),
+      );
+      return;
+    }
+
+    const q = match.best ? '' : stripKnownWords(n, [...NOISE_WORDS, ...DOCTOR_WORDS]);
+    await runDoctorsQuery({ specialty: match.best, q, specialties });
+  }
+
+  async function runDoctorsQuery({ specialty, q, specialties }) {
     const query = { limit: 8 };
-    if (matchedSpecialty) query.specialty_id = matchedSpecialty.id;
+    if (specialty) query.specialty_id = specialty.id;
     else if (q) query.q = q;
 
     const doctors = await withTimeout(SndkApi.getData('get-doctors', { query }));
     popTyping();
 
     if (!Array.isArray(doctors) || doctors.length === 0) {
-      const specLabel = matchedSpecialty ? (matchedSpecialty.arabic_name || matchedSpecialty.name) : (q || '');
+      const specLabel = specialty ? (specialty.arabic_name || specialty.name) : (q || '');
       pushBot(`لا يوجد حالياً أطباء متاحون${specLabel ? ` في «${esc(specLabel)}»` : ''}. جرّب تخصصاً آخر، أو تصفّح كل الأطباء من ${linkBtn(`${sndkBasePath()}/doctors`, 'هنا')}.`);
       return;
     }
 
     const specialtiesById = Object.fromEntries(specialties.map((s) => [s.id, s]));
-    const specLabel = matchedSpecialty ? (matchedSpecialty.arabic_name || matchedSpecialty.name) : '';
+    const specLabel = specialty ? (specialty.arabic_name || specialty.name) : '';
     const parts = doctors.map((d) => {
       const sp = specialtiesById[d.specialty_id];
       const spName = sp ? (sp.arabic_name || sp.name) : '';
@@ -206,6 +234,22 @@ const SndkAssistant = (() => {
       intro + parts.join('؛ ') + '. اضغط على اسم أي طبيب أدناه لعرض صفحته الكاملة والحجز منها مباشرة.'
       + actionsRow(doctors.map((d) => linkBtn(`${sndkBasePath()}/doctor/${encodeURIComponent(d.id)}`, d.name)).join('')),
     );
+  }
+
+  // اختيار المستخدم تخصصاً من رقاقات التوضيح — يُعيد الاستعلام مباشرة بمعرّف
+  // التخصص المحدَّد بلا حاجة لإعادة تفسير نصّ حرّ قد يلتبس مرة أخرى.
+  async function chooseSpecialty(specialtyId) {
+    const specialties = await loadSpecialties();
+    const specialty = specialties.find((s) => s.id === specialtyId) || null;
+    pushTyping();
+    try {
+      await runDoctorsQuery({ specialty, q: '', specialties });
+    } catch (err) {
+      popTyping();
+      pushBot('تعذّر تنفيذ طلبك حالياً. حاول مرة أخرى بعد قليل.');
+    } finally {
+      renderMessages();
+    }
   }
 
   async function intentFacilities(n) {
@@ -311,6 +355,12 @@ const SndkAssistant = (() => {
       else if (id === 'suggest:doctor') submit('أريد طبيب');
       else if (id === 'suggest:facility') submit('ابحث عن مستشفى');
       else if (id === 'suggest:camps') submit('المخيمات الطبية');
+      else if (id.startsWith('specialty:')) {
+        if (sending) return;
+        sending = true;
+        pushUser(btn.textContent.trim());
+        chooseSpecialty(id.slice('specialty:'.length)).finally(() => { sending = false; });
+      }
     });
   }
 
