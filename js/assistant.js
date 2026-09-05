@@ -152,6 +152,34 @@ const SndkAssistant = (() => {
     return fallbackSpecialtiesCache;
   }
 
+  // فقرة واحدة عن طبيب — بكل ما هو متوفّر فعلاً من بيانات، لا اسم مجرّد:
+  // التخصص، التقييم، وسيلة تواصل غير مباشرة عبر صفحته (لا رقم مباشر للطبيب
+  // نفسه في هذا الجدول).
+  function describeDoctorParagraph(d, specialtiesById) {
+    const sp = specialtiesById[d.specialty_id];
+    const spName = sp ? (sp.arabic_name || sp.name) : '';
+    const ratingText = d.rating > 0 ? `تقييمه ${esc(String(d.rating))} من ${esc(String(d.reviews_count || 0))} تقييم` : 'بلا تقييمات بعد';
+    return `${esc(d.name)}${spName ? ` — أخصائي ${esc(spName)}` : ''}. ${ratingText}. لعرض مواعيده والحجز افتح صفحته.`;
+  }
+
+  // فقرة واحدة عن مرفق — النوع والموقع ووسائل التواصل الحقيقية وحالة الحجز
+  // الإلكتروني الفعلية (لا افتراض أنه متاح لمجرّد وجود مرفق).
+  function describeFacilityParagraph(f, bookingIds) {
+    const type = f.type ? (FACILITY_TYPE_LABELS[f.type] || f.type) : '';
+    const location = [f.city, f.governorate].filter(Boolean).join('، ');
+    const phones = f.phones && f.phones.length ? f.phones : (f.phone ? [f.phone] : []);
+    const whatsapps = f.whatsapps && f.whatsapps.length ? f.whatsapps : (f.whatsapp ? [f.whatsapp] : []);
+    const contactParts = [];
+    if (phones[0]) contactParts.push(`هاتف ${esc(phones[0])}`);
+    if (whatsapps[0]) contactParts.push(`واتساب ${esc(whatsapps[0])}`);
+    const bookingText = bookingIds && bookingIds.has(f.id)
+      ? 'الحجز الإلكتروني متاح لهذا المرفق عبر الموقع.'
+      : 'الحجز الإلكتروني غير مفعَّل لهذا المرفق حالياً — تواصل مباشرة.';
+    return `${esc(f.name)}${type ? ` — ${esc(type)}` : ''}${location ? ` في ${esc(location)}` : ''}.`
+      + (contactParts.length ? ` للتواصل: ${contactParts.join('، ')}.` : ' لا وسيلة تواصل مباشرة مسجَّلة.')
+      + ` ${bookingText}`;
+  }
+
   async function fallbackSearch(text) {
     const raw = text.trim().slice(0, 80);
     const n = normalizeSimple(raw);
@@ -168,7 +196,8 @@ const SndkAssistant = (() => {
         return `لا مخيمات طبية معلَنة حالياً. تصفّح القائمة الكاملة من ${linkBtn(`${sndkBasePath()}/camps`, 'هنا')}.`;
       }
       const buttons = camps.map((c) => linkBtn(`${sndkBasePath()}/camp/${encodeURIComponent(c.id)}`, c.title || c.name || 'مخيم')).join('');
-      return `مخيمات طبية متاحة: ${camps.map((c) => esc(c.title || c.name || 'مخيم')).join('، ')}.` + actionsRow(buttons);
+      const list = camps.map((c) => esc(c.title || c.name || 'مخيم')).join('، ');
+      return `يوجد ${camps.length} من المخيمات الطبية المعلَنة حالياً: ${list}. اضغط على أي اسم لعرض تفاصيله والتسجيل فيه.` + actionsRow(buttons);
     }
 
     // اسم تخصص مذكور صراحة — يوجّه بحث الأطباء بمعرّف التخصص لا بالاسم الحرّ
@@ -180,19 +209,22 @@ const SndkAssistant = (() => {
 
     let doctors = [];
     let facilities = [];
+    let bookingIds = null;
     try {
       const doctorQuery = matchedSpecialty ? { specialty_id: matchedSpecialty.id, limit: 6 } : { q: raw, limit: 5 };
       const results = await withTimeout(Promise.all([
         SndkApi.getData('get-doctors', { query: doctorQuery }).catch(() => []),
         SndkApi.getData('get-facilities', { query: { q: raw, limit: 5 } }).catch(() => []),
+        fetchBookingFacilityIds().catch(() => null),
       ]));
       doctors = Array.isArray(results[0]) ? results[0] : [];
       facilities = Array.isArray(results[1]) ? results[1] : [];
+      bookingIds = Array.isArray(results[2]) ? new Set(results[2]) : null;
     } catch (_) { /* استمرّ بلا نتائج بدل رسالة خطأ ثانية */ }
 
     // "أريد حجز موعد" بلا اسم طبيب/مرفق/تخصص معه — إرشاد عام للحجز، لا بحث فارغ
     if (!matchedSpecialty && doctors.length === 0 && facilities.length === 0 && FALLBACK_BOOKING_WORDS.some((w) => n.includes(w))) {
-      return `للحجز اختر أولاً طبيباً أو مرفقاً، ثم اضغط «احجز» من صفحته مباشرة.`
+      return `للحجز اختر أولاً طبيباً أو مرفقاً، ثم اضغط «احجز» من صفحته مباشرة — الحجز الإلكتروني متاح فقط للمرافق المفعَّلة تجارياً؛ غيرها يحتاج تواصلاً مباشراً.`
         + actionsRow(linkBtn(`${sndkBasePath()}/doctors`, 'تصفّح الأطباء') + linkBtn(`${sndkBasePath()}/facilities`, 'تصفّح المرافق'));
     }
 
@@ -201,18 +233,45 @@ const SndkAssistant = (() => {
       return `لا نتائج مطابقة لـ«${esc(label)}» في البحث المبسّط. تصفّح الموقع مباشرة من ${linkBtn(`${sndkBasePath()}/doctors`, 'الأطباء')} أو ${linkBtn(`${sndkBasePath()}/facilities`, 'المرافق')}.`;
     }
 
+    // نتيجة واحدة بالضبط (طبيب أو مرفق، لا كلاهما معاً) — فقرة مفصّلة كاملة
+    // بدل سرد مقتضب، بقدر ما هو متوفّر فعلاً من بيانات.
+    if (doctors.length === 1 && facilities.length === 0) {
+      const specialtiesById = Object.fromEntries(specialties.map((s) => [s.id, s]));
+      return describeDoctorParagraph(doctors[0], specialtiesById)
+        + actionsRow(linkBtn(`${sndkBasePath()}/doctor/${encodeURIComponent(doctors[0].id)}`, 'فتح صفحة الطبيب'));
+    }
+    if (facilities.length === 1 && doctors.length === 0) {
+      return describeFacilityParagraph(facilities[0], bookingIds)
+        + actionsRow(linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(facilities[0].id)}`, 'فتح صفحة المرفق'));
+    }
+
+    const specialtiesById = Object.fromEntries(specialties.map((s) => [s.id, s]));
     const parts = [];
     if (doctors.length) {
       const specLabel = matchedSpecialty ? ` في تخصص «${esc(matchedSpecialty.arabic_name || matchedSpecialty.name)}»` : '';
-      parts.push(`أطباء${specLabel}: ${doctors.map((d) => esc(d.name)).join('، ')}`);
+      const items = doctors.map((d) => {
+        const sp = specialtiesById[d.specialty_id];
+        const spName = sp ? (sp.arabic_name || sp.name) : '';
+        const ratingText = d.rating > 0 ? ` (تقييم ${esc(String(d.rating))})` : '';
+        return `${esc(d.name)}${!matchedSpecialty && spName ? ` — ${esc(spName)}` : ''}${ratingText}`;
+      });
+      parts.push(`${doctors.length} من الأطباء${specLabel}: ${items.join('، ')}`);
     }
-    if (facilities.length) parts.push(`مرافق: ${facilities.map((f) => esc(f.name)).join('، ')}`);
+    if (facilities.length) {
+      const items = facilities.map((f) => {
+        const type = f.type ? (FACILITY_TYPE_LABELS[f.type] || f.type) : '';
+        const location = [f.city, f.governorate].filter(Boolean).join('، ');
+        const booking = bookingIds ? (bookingIds.has(f.id) ? 'حجز إلكتروني متاح' : 'حجز إلكتروني غير متاح') : '';
+        return `${esc(f.name)}${type ? ` (${esc(type)})` : ''}${location ? ` في ${esc(location)}` : ''}${booking ? ` — ${booking}` : ''}`;
+      });
+      parts.push(`${facilities.length} من المرافق: ${items.join('، ')}`);
+    }
     const buttons = [
       ...doctors.map((d) => linkBtn(`${sndkBasePath()}/doctor/${encodeURIComponent(d.id)}`, d.name)),
       ...facilities.map((f) => linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(f.id)}`, f.name)),
     ].join('');
 
-    return `${parts.join(' — ')}.` + actionsRow(buttons);
+    return `${parts.join('. ')}. اضغط على أي اسم أدناه لعرض التفاصيل الكاملة.` + actionsRow(buttons);
   }
 
   async function submit(text) {
