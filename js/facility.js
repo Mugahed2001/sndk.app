@@ -45,6 +45,7 @@ async function main() {
 
   document.title = `${facility.name} — سندك الطبي`;
   render(facility, schedules);
+  trackProfileViewAndDwell(facility.id);
 
   // بوّابتا الحجز الإلكتروني — نظير BookingEntryButton بالحرف — لا تُنتظران
   // قبل رسم الصفحة: نداء get-visitor-commercial-snapshot ثقيل نسبياً (يجلب
@@ -64,6 +65,27 @@ async function loadBookingGates(facility, schedules) {
   wireImageFallbacks(panel);
   wireContactFallback(panel);
   wireScheduleButtons(facility, schedules);
+}
+
+// نظير ReachTracker(trackDwell: true) — حدث فتح فوراً، وحدث مكوث عند مغادرة
+// الصفحة (لا `dispose` هنا؛ `pagehide`/`visibilitychange` أقرب مكافئ في
+// الويب). الجلسات أطول من ساعة تُستبعَد — هاتف تُرك على الشاشة لا قارئ.
+function trackProfileViewAndDwell(facilityId) {
+  SndkTrack.track('facility.profile_view', { facilityId });
+  const openedAt = Date.now();
+  let dwellSent = false;
+  const sendDwell = () => {
+    if (dwellSent) return;
+    const seconds = Math.round((Date.now() - openedAt) / 1000);
+    if (seconds > 0 && seconds < 3600) {
+      dwellSent = true;
+      SndkTrack.track('facility.profile_dwell', { facilityId, props: { seconds } });
+    }
+  };
+  window.addEventListener('pagehide', sendDwell);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') sendDwell();
+  });
 }
 
 function renderTopbar() {
@@ -245,8 +267,14 @@ function wireInteractions(facility, schedules) {
 
   const phones = facility.phones && facility.phones.length ? facility.phones : (facility.phone ? [facility.phone] : []);
   const whatsapps = facility.whatsapps && facility.whatsapps.length ? facility.whatsapps : (facility.whatsapp ? [facility.whatsapp] : []);
-  document.getElementById('callBtn')?.addEventListener('click', () => { window.location.href = `tel:${cleanPhone(phones[0])}`; });
-  document.getElementById('waBtn')?.addEventListener('click', () => { window.open(`https://wa.me/${cleanPhone(whatsapps[0])}`, '_blank'); });
+  document.getElementById('callBtn')?.addEventListener('click', () => {
+    window.location.href = `tel:${cleanPhone(phones[0])}`;
+    SndkTrack.track('contact.call', { facilityId: facility.id });
+  });
+  document.getElementById('waBtn')?.addEventListener('click', () => {
+    window.open(`https://wa.me/${cleanPhone(whatsapps[0])}`, '_blank');
+    SndkTrack.track('contact.whatsapp', { facilityId: facility.id });
+  });
   document.getElementById('mapBtn')?.addEventListener('click', () => {
     const q = encodeURIComponent(`${facility.address || ''} ${facility.name}`.trim());
     window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, '_blank');

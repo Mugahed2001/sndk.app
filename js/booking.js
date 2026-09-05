@@ -61,6 +61,12 @@ const SndkBooking = (() => {
       return;
     }
 
+    // رأس قمع الحجز — نظير AnalyticsEvents.bookingStart في booking_entry_button.dart.
+    // بعد بوّابة الدخول لا قبلها: start() تُستدعى مرة ثانية من داخل رد نجاح
+    // الدخول (السطر أعلاه)، وتسجيلها قبل البوّابة يُضاعف العدّ لكل زائر غير
+    // مسجَّل يضغط «احجز».
+    SndkTrack.track('booking.start', { facilityId: facility.id, doctorId: schedule.doctor_id, scheduleId: schedule.id });
+
     const sheet = openModal(`
       <h3 class="title-md">اختر يوم الحجز</h3>
       <p class="text-muted mt-8">${esc(schedule.doctors ? schedule.doctors.name : '')}</p>
@@ -269,6 +275,11 @@ const SndkBooking = (() => {
           notes: sheet.querySelector('#bookingNotes').value.trim() || undefined,
           idempotency_key: idempotencyKey,
         }, { accessToken: await SndkAuth.validAccessToken() });
+
+        // قاع القمع — يُسجَّل بمجرّد وجود سجلّ حجز فعلي، بصرف النظر عمّا إذا
+        // كان لا يزال بانتظار دفع (نفس لحظة bookingSubmit في التطبيق: عند
+        // `booked != null` لا عند ظهور شاشة النجاح النهائية).
+        SndkTrack.track('booking.submit', { facilityId: facility.id, doctorId: schedule.doctor_id, scheduleId: schedule.id });
 
         // ═══ الدفع قبل «تمّ الحجز» — نظير appointment_booking_screen.dart ═══
         //

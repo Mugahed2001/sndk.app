@@ -38,6 +38,19 @@ const SndkAuth = (() => {
     return session ? session.profile || null : null;
   }
 
+  /// معرّف المستخدم الخام — لوسم أحداث التتبّع (js/track.js) بمن كان مسجَّلاً
+  /// دخوله *لحظة وقوع الحدث*، لا لحظة إرسال الدُفعة. مزامن عمداً: التتبّع لا
+  /// ينتظر أي شيء، فلا رمز وصول متجدَّد هنا — القيمة المخزَّنة حالياً تكفي.
+  function currentUserId() {
+    return session ? session.user_id || null : null;
+  }
+
+  /// رمز الوصول المخزَّن حالياً بلا تجديد — لتذييل طلب التتبّع بترويسة
+  /// Authorization فقط، لا لأي عملية حسّاسة تحتاج توكناً ساري المفعول يقيناً.
+  function currentAccessTokenSync() {
+    return session ? session.access_token || null : null;
+  }
+
   function isLoggedIn() {
     return !!(session && session.access_token);
   }
@@ -187,6 +200,8 @@ const SndkAuth = (() => {
   return {
     isLoggedIn,
     currentUser,
+    currentUserId,
+    currentAccessTokenSync,
     validAccessToken,
     signIn,
     signUp,
