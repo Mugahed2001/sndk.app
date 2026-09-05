@@ -254,7 +254,7 @@ const SndkAssistant = (() => {
     sentences.push(`${esc(doctor.name)}${specialtyName ? ` أخصائي ${esc(specialtyName)}` : ''}.`);
     if (doctor.rating > 0) sentences.push(`تقييمه ${esc(String(doctor.rating))} من 5 بناءً على ${esc(String(doctor.reviews_count || 0))} تقييم.`);
     if (doctor.bio) sentences.push(esc(doctor.bio));
-    sentences.push(`يعمل في ${arabicCount(facilities.length, 'مرفق', 'مرافق')}، وله ${arabicCount(schedules.length, 'جدولة مواعيد', 'جدولات مواعيد')} معلَنة.`);
+    sentences.push(`يعمل في ${arabicCount(facilities.length, 'مرفق', 'مرافق')}، وله ${arabicCount(schedules.length, 'موعد', 'مواعيد')} معلَنة.`);
     if (facilities.length) {
       sentences.push(`المرافق: ${facilities.slice(0, 6).map((f) => esc(f.name)).join('، ')}${facilities.length > 6 ? ' وغيرها' : ''}.`);
     }
@@ -303,7 +303,7 @@ const SndkAssistant = (() => {
     sentences.push(`${esc(facility.name)}${type ? ` هو ${esc(type)}` : ''}${location ? ` في ${esc(location)}` : ''}.`);
     if (facility.nearby_landmark) sentences.push(`أقرب معلَم إليه: ${esc(facility.nearby_landmark)}.`);
     if (facility.description) sentences.push(esc(facility.description));
-    sentences.push(`لديه ${arabicCount(doctors.length, 'طبيب', 'أطباء')}، و${arabicCount(schedules.length, 'جدولة مواعيد', 'جدولات مواعيد')} معلَنة.`);
+    sentences.push(`لديه ${arabicCount(doctors.length, 'طبيب', 'أطباء')}، و${arabicCount(schedules.length, 'موعد', 'مواعيد')} معلَنة.`);
     if (doctors.length) {
       sentences.push(`من الأطباء: ${doctors.slice(0, 6).map((d) => esc(d.name)).join('، ')}${doctors.length > 6 ? ' وغيرهم' : ''}.`);
     }
