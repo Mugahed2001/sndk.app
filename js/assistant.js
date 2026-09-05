@@ -90,9 +90,17 @@ const SndkAssistant = (() => {
     return { best: null, candidates: ranked.slice(0, 5) };
   }
 
+  // إزالة كلمة/عبارة معروفة ككلمة كاملة محاطة بفراغ فقط — لا كأي مطابقة
+  // جزئية داخل كلمة أطول. بلا هذا الحرص: normalize("مستشفى") == "مستشفي"،
+  // وحرف "في" (حرف جر ضمن NOISE_WORDS) هو حرفياً آخر حرفين من "مستشفي" —
+  // فإزالته كسلسلة فرعية تُبقي "مستش" فقط وتكسر البحث عن اسم المستشفى.
   function stripKnownWords(normalizedText, words) {
-    let out = normalizedText;
-    for (const w of words) out = out.replace(new RegExp(normalize(w), 'g'), ' ');
+    let out = ` ${normalizedText} `;
+    for (const w of words) {
+      const nw = normalize(w);
+      if (!nw) continue;
+      out = out.split(` ${nw} `).join(' ');
+    }
     return out.replace(/\s+/g, ' ').trim();
   }
 
