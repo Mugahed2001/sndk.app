@@ -139,6 +139,31 @@ const SndkAssistant = (() => {
 
   const FALLBACK_CAMP_WORDS = ['مخيم', 'مخيمات'];
   const FALLBACK_BOOKING_WORDS = ['موعد', 'مواعيد', 'حجز', 'احجز'];
+  const FALLBACK_DOCTOR_WORDS = ['طبيب', 'أطباء', 'اطباء', 'دكتور', 'دكاترة'];
+  const FALLBACK_FACILITY_WORDS = ['مستشفى', 'مستشفيات', 'عيادة', 'عيادات', 'مركز طبي', 'مراكز', 'مرفق', 'مرافق', 'مستوصف'];
+  const FALLBACK_NOISE_WORDS = ['اريد', 'ابحث عن', 'ابغى', 'ابي', 'من فضلك', 'ابحث', 'عن', 'في', 'لي', 'هل يوجد', 'يوجد', 'ما هو', 'ما هي', 'يمكن', 'يمكنني', 'الذي', 'التي', 'بها', 'به'];
+
+  // إزالة كلمة/عبارة ككلمة كاملة محاطة بفراغ فقط — لا كأي مطابقة جزئية داخل
+  // كلمة أطول. بلا هذا الحرص: normalize("مستشفى") == "مستشفي"، وحرف "في"
+  // (ضمن كلمات الضجيج) هو حرفياً آخر حرفين من "مستشفي" — إزالته كسلسلة فرعية
+  // كانت تُبقي "مستش" فقط وتكسر استخراج اسم المرفق (نفس عطل سابق أُصلح في
+  // هذا الملف قبل تبسيطه، يُصلَح هنا مجدداً لنفس السبب بالضبط).
+  function stripSimpleWords(normalizedText, words) {
+    let out = ` ${normalizedText} `;
+    for (const w of words) {
+      const nw = normalizeSimple(w);
+      if (!nw) continue;
+      out = out.split(` ${nw} `).join(' ');
+    }
+    return out.replace(/\s+/g, ' ').trim();
+  }
+
+  function arabicCount(n, singular, plural) {
+    if (n === 0) return `لا ${plural}`;
+    if (n === 1) return `${singular} واحد`;
+    if (n === 2) return `${singular}ان`;
+    return `${n} ${plural}`;
+  }
 
   let fallbackSpecialtiesCache = null;
   async function loadFallbackSpecialties() {
@@ -162,9 +187,31 @@ const SndkAssistant = (() => {
     return `${esc(d.name)}${spName ? ` — أخصائي ${esc(spName)}` : ''}. ${ratingText}. لعرض مواعيده والحجز افتح صفحته.`;
   }
 
-  // فقرة واحدة عن مرفق — النوع والموقع ووسائل التواصل الحقيقية وحالة الحجز
-  // الإلكتروني الفعلية (لا افتراض أنه متاح لمجرّد وجود مرفق).
-  function describeFacilityParagraph(f, bookingIds) {
+  // جدولات مرفق — لعدّ الأطباء الفعليين والمواعيد المعلَنة، ولاستخراج أسماء
+  // الأطباء عند طلبها تحديداً. استدعاء واحد يُعاد استعماله في الحالتين.
+  async function loadFacilitySchedules(facilityId) {
+    try {
+      const rows = await withTimeout(SndkApi.getData('get-clinic-schedules', { query: { facility_id: facilityId } }));
+      return Array.isArray(rows) ? rows : [];
+    } catch (_) {
+      return [];
+    }
+  }
+  function distinctDoctorsFromSchedules(schedules) {
+    const map = {};
+    for (const s of schedules) {
+      if (s.doctors && s.doctors.is_active !== false) map[s.doctors.id] = s.doctors;
+    }
+    return Object.values(map);
+  }
+
+  // فقرة واحدة عن مرفق — النوع والموقع، عدد الأطباء الفعليين وعدد المواعيد
+  // المعلَنة (من جدولاته الحقيقية لا تخميناً)، وسائل التواصل الحقيقية، وحالة
+  // الحجز الإلكتروني الفعلية (لا افتراض أنه متاح لمجرّد وجود مرفق).
+  async function describeFacilityParagraph(f, bookingIds) {
+    const schedules = await loadFacilitySchedules(f.id);
+    const doctors = distinctDoctorsFromSchedules(schedules);
+
     const type = f.type ? (FACILITY_TYPE_LABELS[f.type] || f.type) : '';
     const location = [f.city, f.governorate].filter(Boolean).join('، ');
     const phones = f.phones && f.phones.length ? f.phones : (f.phone ? [f.phone] : []);
@@ -175,9 +222,14 @@ const SndkAssistant = (() => {
     const bookingText = bookingIds && bookingIds.has(f.id)
       ? 'الحجز الإلكتروني متاح لهذا المرفق عبر الموقع.'
       : 'الحجز الإلكتروني غير مفعَّل لهذا المرفق حالياً — تواصل مباشرة.';
-    return `${esc(f.name)}${type ? ` — ${esc(type)}` : ''}${location ? ` في ${esc(location)}` : ''}.`
-      + (contactParts.length ? ` للتواصل: ${contactParts.join('، ')}.` : ' لا وسيلة تواصل مباشرة مسجَّلة.')
-      + ` ${bookingText}`;
+
+    const sentences = [];
+    sentences.push(`${esc(f.name)}${type ? ` — ${esc(type)}` : ''}${location ? ` في ${esc(location)}` : ''}.`);
+    sentences.push(`لديه ${arabicCount(doctors.length, 'طبيب', 'أطباء')}، و${arabicCount(schedules.length, 'موعد', 'مواعيد')} معلَنة.`);
+    if (doctors.length) sentences.push(`الأطباء: ${doctors.slice(0, 10).map((d) => esc(d.name)).join('، ')}${doctors.length > 10 ? ' وغيرهم' : ''}.`);
+    sentences.push(contactParts.length ? `للتواصل: ${contactParts.join('، ')}.` : 'لا وسيلة تواصل مباشرة مسجَّلة.');
+    sentences.push(bookingText);
+    return sentences.join(' ');
   }
 
   async function fallbackSearch(text) {
@@ -198,6 +250,47 @@ const SndkAssistant = (() => {
       const buttons = camps.map((c) => linkBtn(`${sndkBasePath()}/camp/${encodeURIComponent(c.id)}`, c.title || c.name || 'مخيم')).join('');
       const list = camps.map((c) => esc(c.title || c.name || 'مخيم')).join('، ');
       return `يوجد ${camps.length} من المخيمات الطبية المعلَنة حالياً: ${list}. اضغط على أي اسم لعرض تفاصيله والتسجيل فيه.` + actionsRow(buttons);
+    }
+
+    // "أطباء مستشفى بضه" — طلب مشروط بمرفق محدَّد صراحة (كلمة طبيب + كلمة
+    // نوع مرفق معاً). get-doctors لا يقبل فلترة بمرفق إطلاقاً؛ الأداة
+    // الصحيحة الوحيدة هي جدولات المرفق نفسه (get-clinic-schedules) — نفس
+    // الأسلوب المُصحَّح في دالة الحافة ai-assistant لنفس السبب بالضبط.
+    if (FALLBACK_DOCTOR_WORDS.some((w) => n.includes(normalizeSimple(w))) && FALLBACK_FACILITY_WORDS.some((w) => n.includes(normalizeSimple(w)))) {
+      const facilityQuery = stripSimpleWords(n, [...FALLBACK_NOISE_WORDS, ...FALLBACK_DOCTOR_WORDS, ...FALLBACK_FACILITY_WORDS]);
+      if (facilityQuery) {
+        let matches = [];
+        try {
+          const rows = await withTimeout(SndkApi.getData('get-facilities', { query: { q: facilityQuery, limit: 5 } }));
+          matches = Array.isArray(rows) ? rows : [];
+        } catch (_) { /* استمرّ بلا نتائج */ }
+
+        if (matches.length === 0) {
+          return `لا مرفق مطابق لـ«${esc(facilityQuery)}» في البحث المبسّط. تصفّح كل المرافق من ${linkBtn(`${sndkBasePath()}/facilities`, 'هنا')}.`;
+        }
+        const facility = matches[0];
+        const schedules = await loadFacilitySchedules(facility.id);
+        const doctors = distinctDoctorsFromSchedules(schedules);
+        const ambiguityNote = matches.length > 1 ? ` (من بين ${matches.length} مرافق تطابق «${esc(facilityQuery)}» — اخترت الأقرب: ${esc(facility.name)})` : '';
+
+        const sentences = [`${esc(facility.name)}${ambiguityNote} لديه ${arabicCount(doctors.length, 'طبيب', 'أطباء')}، و${arabicCount(schedules.length, 'موعد', 'مواعيد')} معلَنة.`];
+        if (doctors.length) {
+          const specialtiesForDoctors = await loadFallbackSpecialties();
+          const specialtiesById = Object.fromEntries(specialtiesForDoctors.map((s) => [s.id, s]));
+          const items = doctors.map((d) => {
+            const sp = specialtiesById[d.specialty_id];
+            const spName = sp ? (sp.arabic_name || sp.name) : '';
+            return `${esc(d.name)}${spName ? ` (${esc(spName)})` : ''}`;
+          });
+          sentences.push(`الأطباء: ${items.join('، ')}.`);
+        } else {
+          sentences.push('لا أطباء مسجَّلون لهذا المرفق حالياً.');
+        }
+
+        const buttons = [linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(facility.id)}`, 'فتح صفحة المرفق')]
+          .concat(doctors.map((d) => linkBtn(`${sndkBasePath()}/doctor/${encodeURIComponent(d.id)}`, d.name)));
+        return sentences.join(' ') + actionsRow(buttons.join(''));
+      }
     }
 
     // اسم تخصص مذكور صراحة — يوجّه بحث الأطباء بمعرّف التخصص لا بالاسم الحرّ
@@ -241,7 +334,7 @@ const SndkAssistant = (() => {
         + actionsRow(linkBtn(`${sndkBasePath()}/doctor/${encodeURIComponent(doctors[0].id)}`, 'فتح صفحة الطبيب'));
     }
     if (facilities.length === 1 && doctors.length === 0) {
-      return describeFacilityParagraph(facilities[0], bookingIds)
+      return (await describeFacilityParagraph(facilities[0], bookingIds))
         + actionsRow(linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(facilities[0].id)}`, 'فتح صفحة المرفق'));
     }
 
