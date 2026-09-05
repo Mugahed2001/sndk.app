@@ -190,7 +190,18 @@ const SndkAssistant = (() => {
   const ABOUT_WORDS = ['ما هو سندك', 'عن سندك', 'ما هي المنصة', 'ايش هذا الموقع', 'شنو سندك'];
   const REPORT_WORDS = ['تقرير', 'احصائية', 'احصائيات', 'إحصائية', 'إحصائيات', 'ملخص', 'كم عدد', 'كم مرفق', 'كم مستشفى', 'كم طبيب', 'كم مدينة'];
 
-  const NOISE_WORDS = ['اريد', 'ابحث عن', 'ابغى', 'ابي', 'من فضلك', 'ابحث', 'عن', 'في', 'لي', 'تخصص', 'دكتور', 'طبيب', 'اطباء', 'أطباء'];
+  const NOISE_WORDS = [
+    'اريد', 'ابحث عن', 'ابغى', 'ابي', 'من فضلك', 'ابحث', 'عن', 'في', 'لي',
+    'تخصص', 'دكتور', 'طبيب', 'اطباء', 'أطباء',
+    'هل يوجد', 'يوجد', 'التي في', 'ما هو', 'ما هي', 'يمكن', 'يمكنني', 'الذي', 'التي', 'بها', 'به',
+  ];
+
+  // ميزة/خدمة مطلوبة على المرفق — لا تُطابَق بحثاً نصّياً في الاسم (فشلها كان
+  // صامتاً: "واتساب" لن تظهر أبداً في اسم مرفق)، بل تُرشَّح بعد الجلب من
+  // بيانات حقيقية موجودة أصلاً على كل صفّ. أي ميزة يُطلَب بها ولا بيانات
+  // حقيقية تدعمها (مثل "طوارئ" — لا عمود لها) تُرفض صراحة، لا تُخترَع.
+  const FEATURE_WHATSAPP_WORDS = ['واتساب', 'واتس اب', 'whatsapp'];
+  const FEATURE_BOOKING_WORDS = ['حجز الكتروني', 'حجز إلكتروني', 'حجز اونلاين', 'حجز أونلاين', 'اونلاين', 'أونلاين', 'مواعيد معلنة'];
 
   async function handleMessage(rawText) {
     const text = rawText.trim();
@@ -212,6 +223,10 @@ const SndkAssistant = (() => {
       // قبل فحص "مرافق/أطباء" — "تقرير كامل للمرافق" يحمل كلمة "مرافق" أيضاً
       // وسيُفهَم كبحث عن مرفق اسمه هذا بلا هذا الترتيب.
       if (containsAny(n, REPORT_WORDS)) return void await intentReport();
+      // ميزة مرفق (واتساب/حجز إلكتروني) قد تُذكر بلا أي كلمة "مستشفى/عيادة"
+      // معها ("حجز إلكتروني في المكلا") — ولولا هذا الفحص لسبقتها BOOKING_WORDS
+      // ("حجز" وحدها) إلى نيّة "وجّهني لاختيار طبيب" العامة الخطأ.
+      if (extractFeatureFilter(n)) return void await intentFacilities(n);
       if (containsAny(n, DOCTOR_WORDS)) return void await intentDoctors(n);
       if (containsAny(n, FACILITY_WORDS)) return void await intentFacilities(n);
       if (containsAny(n, BOOKING_WORDS)) return void intentBookingGeneric();
@@ -370,7 +385,7 @@ const SndkAssistant = (() => {
     if (!Array.isArray(doctors) || doctors.length === 0) {
       popTyping();
       const specLabel = specialty ? (specialty.arabic_name || specialty.name) : (q || '');
-      pushBot(`لا يوجد حالياً أطباء متاحون${specLabel ? ` في «${esc(specLabel)}»` : ''}. جرّب تخصصاً آخر، أو تصفّح كل الأطباء من ${linkBtn(`${sndkBasePath()}/doctors`, 'هنا')}.`);
+      pushBot(`لا توجد نتائج مطابقة${specLabel ? ` لـ«${esc(specLabel)}»` : ''} حالياً. جرّب تخصصاً آخر، أو تصفّح كل الأطباء من ${linkBtn(`${sndkBasePath()}/doctors`, 'هنا')}.`);
       return;
     }
 
@@ -423,13 +438,56 @@ const SndkAssistant = (() => {
     }
   }
 
-  async function intentFacilities(n) {
-    const q = stripKnownWords(n, [...NOISE_WORDS, ...FACILITY_WORDS]);
-    const facilities = await withTimeout(SndkApi.getData('get-facilities', { query: q ? { q, limit: 8 } : { limit: 8 } }));
+  // ميزة مطلوبة صراحة في النص — تُرجع null إن لم تُذكر، أو الميزة المطلوبة
+  // مع الكلمات التي حملتها (لتُستبعَد من نصّ البحث بالاسم/المدينة).
+  function extractFeatureFilter(n) {
+    const whatsappHit = FEATURE_WHATSAPP_WORDS.find((w) => n.includes(normalize(w)));
+    if (whatsappHit) return { kind: 'whatsapp', words: FEATURE_WHATSAPP_WORDS, label: 'واتساب' };
+    const bookingHit = FEATURE_BOOKING_WORDS.find((w) => n.includes(normalize(w)));
+    if (bookingHit) return { kind: 'booking', words: FEATURE_BOOKING_WORDS, label: 'حجز إلكتروني' };
+    return null;
+  }
 
-    if (!Array.isArray(facilities) || facilities.length === 0) {
+  async function applyFeatureFilter(facilities, feature) {
+    if (!feature) return facilities;
+    if (feature.kind === 'whatsapp') {
+      return facilities.filter((f) => (f.whatsapps && f.whatsapps.length) || f.whatsapp);
+    }
+    if (feature.kind === 'booking') {
+      let bookingIds = null;
+      try {
+        bookingIds = await withTimeout(fetchBookingFacilityIds());
+      } catch (_) { /* فشل الجلب لا يمنع بقية الرد — فقط لا يُرشَّح شيء */ }
+      if (!Array.isArray(bookingIds)) return facilities; // لا معلومة موثوقة — لا نُقصي أحداً ظلماً
+      const allowed = new Set(bookingIds);
+      return facilities.filter((f) => allowed.has(f.id));
+    }
+    return facilities;
+  }
+
+  async function intentFacilities(n) {
+    const feature = extractFeatureFilter(n);
+    const q = stripKnownWords(n, [...NOISE_WORDS, ...FACILITY_WORDS, ...(feature ? feature.words : [])]);
+    const baseQuery = { limit: feature ? 30 : 8 }; // مع ميزة: مرشّحون أوسع قبل الترشيح المحلي
+    if (q) baseQuery.q = q;
+
+    const rawFacilities = await withTimeout(SndkApi.getData('get-facilities', { query: baseQuery }));
+    const facilitiesAll = Array.isArray(rawFacilities) ? rawFacilities : [];
+    const facilities = (await applyFeatureFilter(facilitiesAll, feature)).slice(0, 8);
+
+    if (facilities.length === 0) {
       popTyping();
-      pushBot(`لا توجد مرافق مطابقة${q ? ` لـ«${esc(q)}»` : ''} حالياً. تصفّح كل المرافق من ${linkBtn(`${sndkBasePath()}/facilities`, 'هنا')}.`);
+      const criterion = [q, feature ? feature.label : ''].filter(Boolean).join(' + ');
+      let msg = `لا توجد نتائج مطابقة${criterion ? ` لـ«${esc(criterion)}»` : ''} حالياً.`;
+      // بدائل قريبة من نفس المجموعة المجلوبة (بلا ترشيح الميزة) إن وُجدت —
+      // بيانات حقيقية فعلاً وصلت، فعرضها أدقّ من رابط عام فقط.
+      const alternatives = facilitiesAll.slice(0, 5);
+      if (alternatives.length > 0) {
+        msg += ' هذه خيارات قريبة متاحة:' + actionsRow(alternatives.map((f) => linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(f.id)}`, f.name)).join(''));
+      } else {
+        msg += ` تصفّح كل المرافق من ${linkBtn(`${sndkBasePath()}/facilities`, 'هنا')}.`;
+      }
+      pushBot(msg);
       return;
     }
 
