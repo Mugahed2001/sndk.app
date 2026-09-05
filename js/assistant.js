@@ -1,16 +1,16 @@
-// مساعد «سندك الطبي» — ذكاء اصطناعي حقيقي (Claude عبر Anthropic API) خلف
-// دالة الحافة ai-assistant، لا محرّك مطابقة كلمات محلي بعد الآن. الواجهة
-// هنا خفيفة عمداً: تعرض المحادثة وترسل كل رسالة للخادم — كل الفهم والبحث في
-// بيانات الأطباء/المرافق يحدث هناك عبر أدوات (tools) تستدعي نفس دوال
-// get-doctors/get-facilities/... العامة، لا هنا ولا من ذاكرة النموذج العامة
-// (مفروض صراحة في system prompt الخادم — انظر تعليقه).
+// مساعد «سندك الطبي» — ذكاء اصطناعي حقيقي (Gemini خلف دالة الحافة
+// ai-assistant) مع تحوّل تلقائي **صامت** إلى بحث محلي حتمي (fallbackSearch
+// أدناه) كلما تعذّر النموذج (رصيد/حصّة منتهية، حدّ يومي، عطل مؤقت، أو
+// انقطاع اتصال) — الزائر لا يرى أبداً رسالة "تعذّر الوصول للمساعد" أو ما
+// شابهها؛ التحوّل يبدو استمراراً طبيعياً للمحادثة لا إعلان فشل. الفرق الوحيد
+// المرئي: بحث محلي يعتمد على مطابقة كلمات مباشرة (لا فهم لغة حرّ)، فرداً قد
+// يكون أقل تفصيلاً من ردّ Gemini، لكنه لا يتوقّف أبداً.
 //
-// حدود ما زالت قائمة رغم تغيير المحرّك:
-// - لا بيانات دفع تمرّ من هنا إطلاقاً (نفس القاعدة السابقة، مفروضة في
-//   system prompt الخادم أيضاً لا هنا فقط).
-// - حدّ يومي لكل جهاز/IP على الخادم — قد يصل الزائر لرسالة "تجاوزت الحدّ".
-// - مهلة صريحة ٢٥ ثانية على الطلب (ردّ نموذج حقيقي أبطأ من استعلام عادي) —
-//   إنترنت ضعيف جداً يحصل على رسالة واضحة بدل تعليق صامت.
+// حدود ما زالت قائمة بصرف النظر عن أي المحرّكين أجاب:
+// - لا بيانات دفع تمرّ من هنا إطلاقاً (مفروضة في system prompt الخادم أيضاً
+//   لا هنا فقط، ومحرّك البحث المحلي لا يطلب بيانات دفع أصلاً بالتصميم).
+// - مهلة صريحة ٢٥ ثانية على طلب Gemini قبل التحوّل للبحث المحلي — إنترنت
+//   ضعيف جداً يحصل على ردّ مفيد سريعاً بدل تعليق صامت.
 //
 // esc/sndkOpenModal/sndkCloseModal/SNDK_ICONS من common.js.
 
@@ -191,33 +191,27 @@ const SndkAssistant = (() => {
         body: JSON.stringify({ anon_id: getAnonId(), messages: apiHistory.slice(-MAX_HISTORY) }),
       }));
       const decoded = await res.json().catch(() => null);
-      popTyping();
+      const reply = decoded && decoded.success === true && decoded.data && decoded.data.reply;
 
-      if (!decoded || decoded.success !== true) {
-        apiHistory.pop(); // لا نُبقي سؤالاً بلا ردّ في السياق المُرسَل لاحقاً
-        const code = decoded && decoded.code;
-        const prefix = code === 'RATE_LIMITED'
-          ? 'وصلت الحدّ الأقصى للأسئلة الذكية اليوم.'
-          : code === 'AI_UNCONFIGURED'
-            ? 'المساعد الذكي غير مُفعَّل حالياً.'
-            : 'تعذّر الوصول للمساعد الذكي الآن.';
-        pushTyping();
-        const fallback = await fallbackSearch(trimmed);
+      if (reply) {
         popTyping();
-        pushBot(`${prefix} إليك بحث مبسّط بدلاً منه: ${fallback}`);
+        pushBot(linkify(esc(reply)).replace(/\n/g, '<br>'));
+        apiHistory.push({ role: 'assistant', content: reply });
         return;
       }
 
-      const reply = (decoded.data && decoded.data.reply) || 'تعذّر توليد ردّ الآن، حاول مرة أخرى.';
-      pushBot(linkify(esc(reply)).replace(/\n/g, '<br>'));
-      apiHistory.push({ role: 'assistant', content: reply });
-    } catch (err) {
-      popTyping();
+      // فشل أو ردّ فارغ — تحوّل صامت للبحث المحلّي بلا أي رسالة عطل: يجب أن
+      // يبدو استمراراً طبيعياً للمحادثة. apiHistory لا يحمل هذا الردّ (مصدره
+      // محلّي لا نموذج) فلا يدخل سياق الرسائل القادمة للخادم.
       apiHistory.pop();
-      pushTyping();
       const fallback = await fallbackSearch(trimmed);
       popTyping();
-      pushBot(`تعذّر الوصول للمساعد الذكي الآن. إليك بحث مبسّط بدلاً منه: ${fallback}`);
+      pushBot(fallback);
+    } catch (err) {
+      apiHistory.pop();
+      const fallback = await fallbackSearch(trimmed);
+      popTyping();
+      pushBot(fallback);
     } finally {
       sending = false;
     }
