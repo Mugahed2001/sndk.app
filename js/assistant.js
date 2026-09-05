@@ -104,6 +104,13 @@ const SndkAssistant = (() => {
     return out.replace(/\s+/g, ' ').trim();
   }
 
+  function arabicCount(n, singular, plural) {
+    if (n === 0) return `لا ${plural}`;
+    if (n === 1) return `${singular} واحد`;
+    if (n === 2) return `${singular}ان`;
+    return `${n} ${plural}`;
+  }
+
   // ─────────────────────────── العرض ───────────────────────────
 
   function bubble(role, innerHtml) {
@@ -195,6 +202,96 @@ const SndkAssistant = (() => {
     }
   }
 
+  // فقرة مفصّلة عن طبيب واحد مطابَق بدقّة: تخصصه وتقييمه ونبذته، مرافقه
+  // وجدولاته (من get-clinic-schedules — نفس ما تعرضه صفحة الطبيب)، وأقرب
+  // وسيلة تواصل فعلية (هاتف/واتساب المرفق الأول، إذ لا رقم مباشر للطبيب
+  // نفسه). فشل هذا الاستدعاء الإضافي لا يمنع عرض ما هو متوفر أصلاً.
+  async function describeDoctorDetail(doctor, specialtyGuess, specialtiesById) {
+    let schedules = [];
+    try {
+      schedules = await withTimeout(SndkApi.getData('get-clinic-schedules', { query: { doctor_id: doctor.id } }));
+    } catch (_) { /* التفاصيل الإضافية اختيارية */ }
+    if (!Array.isArray(schedules)) schedules = [];
+
+    const sp = specialtyGuess || (specialtiesById && specialtiesById[doctor.specialty_id]) || null;
+    const specialtyName = sp ? (sp.arabic_name || sp.name) : '';
+
+    const facilitiesMap = {};
+    for (const s of schedules) if (s.facilities) facilitiesMap[s.facilities.id] = s.facilities;
+    const facilities = Object.values(facilitiesMap);
+
+    const sentences = [];
+    sentences.push(`${esc(doctor.name)}${specialtyName ? ` أخصائي ${esc(specialtyName)}` : ''}.`);
+    if (doctor.rating > 0) sentences.push(`تقييمه ${esc(String(doctor.rating))} من 5 بناءً على ${esc(String(doctor.reviews_count || 0))} تقييم.`);
+    if (doctor.bio) sentences.push(esc(doctor.bio));
+    sentences.push(`يعمل في ${arabicCount(facilities.length, 'مرفق', 'مرافق')}، وله ${arabicCount(schedules.length, 'جدولة مواعيد', 'جدولات مواعيد')} معلَنة.`);
+    if (facilities.length) {
+      sentences.push(`المرافق: ${facilities.slice(0, 6).map((f) => esc(f.name)).join('، ')}${facilities.length > 6 ? ' وغيرها' : ''}.`);
+    }
+
+    const primaryFacility = facilities[0];
+    if (primaryFacility) {
+      const fPhones = primaryFacility.phones && primaryFacility.phones.length ? primaryFacility.phones : (primaryFacility.phone ? [primaryFacility.phone] : []);
+      const fWhatsapps = primaryFacility.whatsapps && primaryFacility.whatsapps.length ? primaryFacility.whatsapps : (primaryFacility.whatsapp ? [primaryFacility.whatsapp] : []);
+      const contactParts = [];
+      if (fPhones[0]) contactParts.push(`هاتف ${esc(fPhones[0])}`);
+      if (fWhatsapps[0]) contactParts.push(`واتساب ${esc(fWhatsapps[0])}`);
+      if (contactParts.length) sentences.push(`للتواصل عبر ${esc(primaryFacility.name)}: ${contactParts.join('، ')}.`);
+    }
+
+    const actions = [linkBtn(`${sndkBasePath()}/doctor/${encodeURIComponent(doctor.id)}`, 'فتح صفحة الطبيب والحجز')];
+    if (primaryFacility) {
+      const fWhatsapps = primaryFacility.whatsapps && primaryFacility.whatsapps.length ? primaryFacility.whatsapps : (primaryFacility.whatsapp ? [primaryFacility.whatsapp] : []);
+      if (fWhatsapps[0]) actions.push(`<a class="btn btn-sm btn-outline" href="https://wa.me/${esc(cleanPhone(fWhatsapps[0]))}" target="_blank" rel="noopener">واتساب المرفق</a>`);
+    }
+
+    return sentences.join(' ') + actionsRow(actions.join(''));
+  }
+
+  // فقرة مفصّلة عن مرفق واحد مطابَق بدقّة: نوعه وموقعه ووصفه، أطباؤه
+  // وعددهم (من نفس الجدولات)، ووسائل التواصل الفعلية كلها — لا سرد بطاقات
+  // مختصرة كما في نتائج البحث المتعدّدة.
+  async function describeFacilityDetail(facility) {
+    let schedules = [];
+    try {
+      schedules = await withTimeout(SndkApi.getData('get-clinic-schedules', { query: { facility_id: facility.id } }));
+    } catch (_) { /* التفاصيل الإضافية اختيارية */ }
+    if (!Array.isArray(schedules)) schedules = [];
+
+    const doctorsMap = {};
+    for (const s of schedules) {
+      if (s.doctors && s.doctors.is_active !== false) doctorsMap[s.doctors.id] = s.doctors;
+    }
+    const doctors = Object.values(doctorsMap);
+
+    const phones = facility.phones && facility.phones.length ? facility.phones : (facility.phone ? [facility.phone] : []);
+    const whatsapps = facility.whatsapps && facility.whatsapps.length ? facility.whatsapps : (facility.whatsapp ? [facility.whatsapp] : []);
+    const type = facility.type ? (FACILITY_TYPE_LABELS[facility.type] || facility.type) : '';
+    const location = [facility.district, facility.city, facility.governorate].filter(Boolean).join('، ');
+
+    const sentences = [];
+    sentences.push(`${esc(facility.name)}${type ? ` هو ${esc(type)}` : ''}${location ? ` في ${esc(location)}` : ''}.`);
+    if (facility.nearby_landmark) sentences.push(`أقرب معلَم إليه: ${esc(facility.nearby_landmark)}.`);
+    if (facility.description) sentences.push(esc(facility.description));
+    sentences.push(`لديه ${arabicCount(doctors.length, 'طبيب', 'أطباء')}، و${arabicCount(schedules.length, 'جدولة مواعيد', 'جدولات مواعيد')} معلَنة.`);
+    if (doctors.length) {
+      sentences.push(`من الأطباء: ${doctors.slice(0, 6).map((d) => esc(d.name)).join('، ')}${doctors.length > 6 ? ' وغيرهم' : ''}.`);
+    }
+
+    const contactParts = [];
+    if (phones[0]) contactParts.push(`هاتف ${esc(phones[0])}`);
+    if (whatsapps[0]) contactParts.push(`واتساب ${esc(whatsapps[0])}`);
+    if (facility.email) contactParts.push(`بريد ${esc(facility.email)}`);
+    if (facility.website) contactParts.push(`موقع ${esc(facility.website)}`);
+    sentences.push(contactParts.length ? `للتواصل: ${contactParts.join('، ')}.` : 'لا وسيلة تواصل مباشرة مسجَّلة لهذا المرفق حالياً.');
+
+    const actions = [linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(facility.id)}`, 'فتح صفحة المرفق')];
+    if (whatsapps[0]) actions.push(`<a class="btn btn-sm btn-filled" href="https://wa.me/${esc(cleanPhone(whatsapps[0]))}" target="_blank" rel="noopener">واتساب</a>`);
+    if (phones[0]) actions.push(`<a class="btn btn-sm btn-outline" href="tel:${esc(cleanPhone(phones[0]))}">اتصال</a>`);
+
+    return sentences.join(' ') + actionsRow(actions.join(''));
+  }
+
   async function intentDoctors(n) {
     const specialties = await loadSpecialties();
     const match = matchSpecialties(n, specialties);
@@ -218,15 +315,27 @@ const SndkAssistant = (() => {
     else if (q) query.q = q;
 
     const doctors = await withTimeout(SndkApi.getData('get-doctors', { query }));
-    popTyping();
 
     if (!Array.isArray(doctors) || doctors.length === 0) {
+      popTyping();
       const specLabel = specialty ? (specialty.arabic_name || specialty.name) : (q || '');
       pushBot(`لا يوجد حالياً أطباء متاحون${specLabel ? ` في «${esc(specLabel)}»` : ''}. جرّب تخصصاً آخر، أو تصفّح كل الأطباء من ${linkBtn(`${sndkBasePath()}/doctors`, 'هنا')}.`);
       return;
     }
 
     const specialtiesById = Object.fromEntries(specialties.map((s) => [s.id, s]));
+
+    // نتيجة واحدة بالضبط — فقرة مفصّلة عنه بدل سرد قصير، هذا ما سُئل عنه
+    // تحديداً (اسم طبيب/تخصص محدَّد يحصر النتيجة في واحد). يبقى مؤشّر
+    // الكتابة ظاهراً خلال نداء التفاصيل الإضافي (جدولاته) لا يختفي ثم يعود.
+    if (doctors.length === 1) {
+      const detail = await describeDoctorDetail(doctors[0], specialty, specialtiesById);
+      popTyping();
+      pushBot(detail);
+      return;
+    }
+
+    popTyping();
     const specLabel = specialty ? (specialty.arabic_name || specialty.name) : '';
     const parts = doctors.map((d) => {
       const sp = specialtiesById[d.specialty_id];
@@ -263,13 +372,23 @@ const SndkAssistant = (() => {
   async function intentFacilities(n) {
     const q = stripKnownWords(n, [...NOISE_WORDS, ...FACILITY_WORDS]);
     const facilities = await withTimeout(SndkApi.getData('get-facilities', { query: q ? { q, limit: 8 } : { limit: 8 } }));
-    popTyping();
 
     if (!Array.isArray(facilities) || facilities.length === 0) {
+      popTyping();
       pushBot(`لا توجد مرافق مطابقة${q ? ` لـ«${esc(q)}»` : ''} حالياً. تصفّح كل المرافق من ${linkBtn(`${sndkBasePath()}/facilities`, 'هنا')}.`);
       return;
     }
 
+    // نتيجة واحدة بالضبط — فقرة مفصّلة عنه بدل سرد قصير (نفس أسلوب الأطباء
+    // أعلاه). مؤشّر الكتابة يبقى ظاهراً خلال نداء التفاصيل الإضافي.
+    if (facilities.length === 1) {
+      const detail = await describeFacilityDetail(facilities[0]);
+      popTyping();
+      pushBot(detail);
+      return;
+    }
+
+    popTyping();
     const parts = facilities.map((f) => {
       const type = f.type ? (FACILITY_TYPE_LABELS[f.type] || f.type) : '';
       const location = [f.city, f.governorate].filter(Boolean).join('، ');

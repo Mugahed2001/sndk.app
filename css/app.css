@@ -424,15 +424,25 @@ footer.site-footer {
 }
 
 .asst-panel { display: flex; flex-direction: column; }
+
+/* مِمرَّر تمرير واحد فقط للوحة المساعد — لا اثنان متداخلان (الخارجي
+   .modal-sheet المشترك + هذا). overflow:hidden هنا يُسكِت تمرير الخارجي كي
+   لا يبقى إلا تمرير asst-body وحده، بلا تغيير أي مودال آخر في الموقع. */
+.modal-sheet:has(.asst-panel) { overflow: hidden; }
+
 .asst-body {
   flex: 1;
   min-height: 220px;
   max-height: 50vh;
   overflow-y: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Edge القديم */
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
+.asst-body::-webkit-scrollbar { display: none; } /* Chrome/Safari/Edge */
 
 .asst-bubble {
   max-width: 88%;
