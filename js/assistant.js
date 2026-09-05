@@ -78,31 +78,90 @@ const SndkAssistant = (() => {
     return `<div class="row wrap gap-8 mt-8">${html}</div>`;
   }
 
-  // بحث مبسّط بلا أي ذكاء اصطناعي (بحث نصّي مباشر عبر get-doctors/
-  // get-facilities) — يعمل دائماً بلا تكلفة API، ويُستعمَل بديلاً كلما تعذّر
-  // الوصول للمساعد الذكي (رصيد منتهٍ، حدّ يومي، أو عطل مؤقت) بدل توقّف
-  // المساعد عن أي فائدة.
+  // بحث مبسّط بلا أي ذكاء اصطناعي — يعمل دائماً بلا تكلفة API، ويُستعمَل
+  // بديلاً كلما تعذّر الوصول للمساعد الذكي (رصيد منتهٍ، حدّ يومي، أو عطل
+  // مؤقت) بدل توقّف المساعد عن أي فائدة. يغطّي نفس الفئات الأربع التي كان
+  // المحرّك الحتمي القديم يغطّيها: مستشفى/طبيب/تخصص/موعد — لا بحث نصّي عام
+  // فقط.
+  function normalizeSimple(t) {
+    return (t || '')
+      .replace(/[ً-ٰ]/g, '')
+      .replace(/[إأآا]/g, 'ا')
+      .replace(/ة/g, 'ه')
+      .replace(/ى/g, 'ي')
+      .toLowerCase()
+      .trim();
+  }
+
+  const FALLBACK_CAMP_WORDS = ['مخيم', 'مخيمات'];
+  const FALLBACK_BOOKING_WORDS = ['موعد', 'مواعيد', 'حجز', 'احجز'];
+
+  let fallbackSpecialtiesCache = null;
+  async function loadFallbackSpecialties() {
+    if (fallbackSpecialtiesCache) return fallbackSpecialtiesCache;
+    try {
+      const rows = await withTimeout(SndkApi.getData('get-specialties', { query: { limit: 200 } }));
+      fallbackSpecialtiesCache = Array.isArray(rows) ? rows : [];
+    } catch (_) {
+      fallbackSpecialtiesCache = [];
+    }
+    return fallbackSpecialtiesCache;
+  }
+
   async function fallbackSearch(text) {
-    const q = text.trim().slice(0, 80);
-    if (!q) return 'جرّب كتابة اسم طبيب أو مستشفى تبحث عنه.';
+    const raw = text.trim().slice(0, 80);
+    const n = normalizeSimple(raw);
+    if (!n) return 'جرّب كتابة اسم طبيب أو مستشفى أو تخصص تبحث عنه.';
+
+    // مخيمات طبية
+    if (FALLBACK_CAMP_WORDS.some((w) => n.includes(w))) {
+      let camps = [];
+      try {
+        const rows = await withTimeout(SndkApi.getData('get-camps', { query: { scope: 'active' } }));
+        camps = Array.isArray(rows) ? rows : [];
+      } catch (_) { /* استمرّ بلا نتائج */ }
+      if (camps.length === 0) {
+        return `لا مخيمات طبية معلَنة حالياً. تصفّح القائمة الكاملة من ${linkBtn(`${sndkBasePath()}/camps`, 'هنا')}.`;
+      }
+      const buttons = camps.map((c) => linkBtn(`${sndkBasePath()}/camp/${encodeURIComponent(c.id)}`, c.title || c.name || 'مخيم')).join('');
+      return `مخيمات طبية متاحة: ${camps.map((c) => esc(c.title || c.name || 'مخيم')).join('، ')}.` + actionsRow(buttons);
+    }
+
+    // اسم تخصص مذكور صراحة — يوجّه بحث الأطباء بمعرّف التخصص لا بالاسم الحرّ
+    const specialties = await loadFallbackSpecialties();
+    const matchedSpecialty = specialties.find((s) => {
+      const name = normalizeSimple(s.arabic_name || s.name || '');
+      return name.length >= 3 && n.includes(name);
+    });
 
     let doctors = [];
     let facilities = [];
     try {
+      const doctorQuery = matchedSpecialty ? { specialty_id: matchedSpecialty.id, limit: 6 } : { q: raw, limit: 5 };
       const results = await withTimeout(Promise.all([
-        SndkApi.getData('get-doctors', { query: { q, limit: 5 } }).catch(() => []),
-        SndkApi.getData('get-facilities', { query: { q, limit: 5 } }).catch(() => []),
+        SndkApi.getData('get-doctors', { query: doctorQuery }).catch(() => []),
+        SndkApi.getData('get-facilities', { query: { q: raw, limit: 5 } }).catch(() => []),
       ]));
       doctors = Array.isArray(results[0]) ? results[0] : [];
       facilities = Array.isArray(results[1]) ? results[1] : [];
     } catch (_) { /* استمرّ بلا نتائج بدل رسالة خطأ ثانية */ }
 
+    // "أريد حجز موعد" بلا اسم طبيب/مرفق/تخصص معه — إرشاد عام للحجز، لا بحث فارغ
+    if (!matchedSpecialty && doctors.length === 0 && facilities.length === 0 && FALLBACK_BOOKING_WORDS.some((w) => n.includes(w))) {
+      return `للحجز اختر أولاً طبيباً أو مرفقاً، ثم اضغط «احجز» من صفحته مباشرة.`
+        + actionsRow(linkBtn(`${sndkBasePath()}/doctors`, 'تصفّح الأطباء') + linkBtn(`${sndkBasePath()}/facilities`, 'تصفّح المرافق'));
+    }
+
     if (doctors.length === 0 && facilities.length === 0) {
-      return `لا نتائج مطابقة لـ«${esc(q)}» في البحث المبسّط. تصفّح الموقع مباشرة من ${linkBtn(`${sndkBasePath()}/doctors`, 'الأطباء')} أو ${linkBtn(`${sndkBasePath()}/facilities`, 'المرافق')}.`;
+      const label = matchedSpecialty ? (matchedSpecialty.arabic_name || matchedSpecialty.name) : raw;
+      return `لا نتائج مطابقة لـ«${esc(label)}» في البحث المبسّط. تصفّح الموقع مباشرة من ${linkBtn(`${sndkBasePath()}/doctors`, 'الأطباء')} أو ${linkBtn(`${sndkBasePath()}/facilities`, 'المرافق')}.`;
     }
 
     const parts = [];
-    if (doctors.length) parts.push(`أطباء: ${doctors.map((d) => esc(d.name)).join('، ')}`);
+    if (doctors.length) {
+      const specLabel = matchedSpecialty ? ` في تخصص «${esc(matchedSpecialty.arabic_name || matchedSpecialty.name)}»` : '';
+      parts.push(`أطباء${specLabel}: ${doctors.map((d) => esc(d.name)).join('، ')}`);
+    }
     if (facilities.length) parts.push(`مرافق: ${facilities.map((f) => esc(f.name)).join('، ')}`);
     const buttons = [
       ...doctors.map((d) => linkBtn(`${sndkBasePath()}/doctor/${encodeURIComponent(d.id)}`, d.name)),
