@@ -188,6 +188,7 @@ const SndkAssistant = (() => {
   const ACCOUNT_WORDS = ['دخول', 'تسجيل الدخول', 'انشاء حساب', 'إنشاء حساب', 'سجل دخول', 'حسابي', 'تسجيل حساب'];
   const PAYMENT_WORDS = ['دفع', 'فيزا', 'بطاقة', 'ادفع', 'الدفع'];
   const ABOUT_WORDS = ['ما هو سندك', 'عن سندك', 'ما هي المنصة', 'ايش هذا الموقع', 'شنو سندك'];
+  const REPORT_WORDS = ['تقرير', 'احصائية', 'احصائيات', 'إحصائية', 'إحصائيات', 'ملخص', 'كم عدد', 'كم مرفق', 'كم مستشفى', 'كم طبيب', 'كم مدينة'];
 
   const NOISE_WORDS = ['اريد', 'ابحث عن', 'ابغى', 'ابي', 'من فضلك', 'ابحث', 'عن', 'في', 'لي', 'تخصص', 'دكتور', 'طبيب', 'اطباء', 'أطباء'];
 
@@ -208,6 +209,9 @@ const SndkAssistant = (() => {
       if (containsAny(n, MY_APPOINTMENTS_WORDS)) return void intentMyAppointments();
       if (containsAny(n, ACCOUNT_WORDS)) return void intentAccount();
       if (containsAny(n, PAYMENT_WORDS)) return void intentPayment();
+      // قبل فحص "مرافق/أطباء" — "تقرير كامل للمرافق" يحمل كلمة "مرافق" أيضاً
+      // وسيُفهَم كبحث عن مرفق اسمه هذا بلا هذا الترتيب.
+      if (containsAny(n, REPORT_WORDS)) return void await intentReport();
       if (containsAny(n, DOCTOR_WORDS)) return void await intentDoctors(n);
       if (containsAny(n, FACILITY_WORDS)) return void await intentFacilities(n);
       if (containsAny(n, BOOKING_WORDS)) return void intentBookingGeneric();
@@ -464,6 +468,31 @@ const SndkAssistant = (() => {
     pushBot(
       `يوجد ${camps.length} من المخيمات الطبية القادمة: ${parts.join('؛ ')}. اضغط لعرض التفاصيل والتسجيل.`
       + actionsRow(camps.map((c) => linkBtn(`${sndkBasePath()}/camp/${encodeURIComponent(c.id)}`, c.title || c.name || 'مخيم')).join('')),
+    );
+  }
+
+  // "تقرير/إحصائيات" — أرقام حقيقية من get-public-stats (نفس ما تعرضه صفحة
+  // «عن سندك») لا أكثر: لا نُخمّن توزيعاً حسب النوع أو المدينة لأن هذه
+  // الدالة العامة لا تُعيده — القاعدة فقط، ولا رقم لا تصرّح به.
+  async function intentReport() {
+    const rows = await withTimeout(SndkApi.getData('get-public-stats'));
+    popTyping();
+    const row = Array.isArray(rows) ? rows[0] : null;
+    if (!row) {
+      pushBot(`تعذّر جلب إحصائيات المنصة حالياً. تصفّح المرافق والأطباء مباشرة من ${linkBtn(`${sndkBasePath()}/facilities`, 'هنا')}.`);
+      return;
+    }
+
+    const facilitiesCount = Number(row.facilities_count) || 0;
+    const doctorsCount = Number(row.doctors_count) || 0;
+    const citiesCount = Number(row.cities_count) || 0;
+
+    pushBot(
+      `هذه أرقام حيّة من قاعدة بيانات سندك الطبي مباشرة (لا تقدير): `
+      + `${esc(String(facilitiesCount))} مرفق صحي مسجَّل، `
+      + `${esc(String(doctorsCount))} طبيب مسجَّل، `
+      + `موزّعين على ${esc(String(citiesCount))} مدينة ومنطقة.`
+      + actionsRow(linkBtn(`${sndkBasePath()}/facilities`, 'تصفّح المرافق') + linkBtn(`${sndkBasePath()}/doctors`, 'تصفّح الأطباء')),
     );
   }
 
