@@ -68,17 +68,39 @@ const SndkAssistant = (() => {
   // نفس أسلوب _matchRegion في lib/utils/trip_query_parser.dart (تطبيق
   // البلاد): لو التبس النص بين أكثر من تخصص بلا ترجيح واضح، لا نخمّن أحدهم —
   // نُعيد كل المرشّحين ليختار المستخدم بنفسه بدل نتيجة قد تكون خاطئة.
+  // كلمات مكان تقطع محاولة مطابقة التخصص عند ما بعدها — "الأسنان في تريم"
+  // يجب ألا تُختبر "تريم" كاسم تخصص محتمل.
+  const LOCATION_MARKERS = ['في', 'داخل', 'قرب', 'بجانب', 'حوالي'];
+
   function matchSpecialties(normalizedText, specialties) {
     const exact = [];
     const prefix = [];
     const contains = [];
+    const matchedIds = new Set();
+
+    // تخصصات كثيرة اسمها "طب X" أو "جراحة X" — من يكتب "الأسنان" وحدها
+    // يقصد "طب الأسنان" بالضبط، فمطابقة النص الكامل فقط (كما كانت) تفوّت
+    // هذه الحالة الشائعة. نبني مرشّحين: النص كاملاً، وكل كلمة/كلمتين
+    // متتاليتين قبل أول كلمة مكان (إن وُجدت).
+    const words = normalizedText.split(' ').filter(Boolean);
+    const candidateTokens = new Set([normalizedText]);
+    for (let i = 0; i < words.length; i++) {
+      if (LOCATION_MARKERS.includes(words[i])) break;
+      candidateTokens.add(words[i]);
+      if (i + 1 < words.length && !LOCATION_MARKERS.includes(words[i + 1])) {
+        candidateTokens.add(`${words[i]} ${words[i + 1]}`);
+      }
+    }
 
     for (const s of specialties) {
       const name = normalize(s.arabic_name || s.name || '');
-      if (name.length < 3) continue;
-      if (normalizedText === name) exact.push(s);
-      else if (normalizedText.startsWith(name) || name.startsWith(normalizedText)) prefix.push(s);
-      else if (normalizedText.includes(name)) contains.push(s);
+      if (name.length < 3 || matchedIds.has(s.id)) continue;
+      for (const token of candidateTokens) {
+        if (token.length < 3) continue;
+        if (token === name) { exact.push(s); matchedIds.add(s.id); break; }
+        if (token.startsWith(name) || name.startsWith(token)) { prefix.push(s); matchedIds.add(s.id); break; }
+        if (token.includes(name) || name.includes(token)) { contains.push(s); matchedIds.add(s.id); break; }
+      }
     }
 
     const ranked = [...exact, ...prefix, ...contains];
@@ -190,6 +212,14 @@ const SndkAssistant = (() => {
       if (containsAny(n, FACILITY_WORDS)) return void await intentFacilities(n);
       if (containsAny(n, BOOKING_WORDS)) return void intentBookingGeneric();
       if (containsAny(n, ABOUT_WORDS) || containsAny(n, GREETING_WORDS)) return void intentAboutOrGreeting(n);
+
+      // بلا أي كلمة مفتاحية صريحة — قد يكون المستخدم كتب اسم تخصص فقط
+      // («الأسنان في تريم») بلا كلمة «طبيب» معه. جرّب مطابقة تخصص قبل
+      // الاستسلام لرسالة «لم أفهم».
+      const specialties = await loadSpecialties();
+      const match = matchSpecialties(n, specialties);
+      if (match.best || match.candidates.length > 0) return void await resolveDoctorsFromMatch(match, n, specialties);
+
       return void intentFallback();
     } catch (err) {
       popTyping();
@@ -295,7 +325,12 @@ const SndkAssistant = (() => {
   async function intentDoctors(n) {
     const specialties = await loadSpecialties();
     const match = matchSpecialties(n, specialties);
+    await resolveDoctorsFromMatch(match, n, specialties);
+  }
 
+  // مشتركة بين "طبيب/دكتور..." الصريحة ومسار اكتشاف اسم تخصص وحده بلا كلمة
+  // مفتاحية (انظر معالج الرسائل) — القرار نفسه في الحالتين.
+  async function resolveDoctorsFromMatch(match, n, specialties) {
     if (match.candidates.length > 1) {
       popTyping();
       pushBot(
@@ -306,10 +341,22 @@ const SndkAssistant = (() => {
     }
 
     const q = match.best ? '' : stripKnownWords(n, [...NOISE_WORDS, ...DOCTOR_WORDS]);
-    await runDoctorsQuery({ specialty: match.best, q, specialties });
+    // بيانات الطبيب لا تحمل مدينة (المدينة خاصّية المرفق لا الطبيب) — لا
+    // تصفية فعلية حسب المكان ممكنة هنا. لو ذكر المستخدم مكاناً («في تريم»)
+    // نصدُقه بذلك بدل تجاهله بصمت، لا أن نتظاهر بأن النتائج مصفّاة.
+    const locationHint = extractLocationHint(n);
+    await runDoctorsQuery({ specialty: match.best, q, specialties, locationHint });
   }
 
-  async function runDoctorsQuery({ specialty, q, specialties }) {
+  function extractLocationHint(normalizedText) {
+    const words = normalizedText.split(' ').filter(Boolean);
+    const idx = words.findIndex((w) => LOCATION_MARKERS.includes(w));
+    if (idx === -1 || idx + 1 >= words.length) return null;
+    const rest = words.slice(idx + 1).join(' ').trim();
+    return rest || null;
+  }
+
+  async function runDoctorsQuery({ specialty, q, specialties, locationHint = null }) {
     const query = { limit: 8 };
     if (specialty) query.specialty_id = specialty.id;
     else if (q) query.q = q;
@@ -347,8 +394,11 @@ const SndkAssistant = (() => {
     const intro = specLabel
       ? `وجدت ${doctors.length} من الأطباء في تخصص «${esc(specLabel)}»: `
       : `وجدت ${doctors.length} من الأطباء المطابقين: `;
+    const locationCaveat = locationHint
+      ? ` (ملاحظة: لا أقدر أُصفّي حسب المدينة بعد — هذه من كل المدن، ابحث عن اسم مدينتك ضمن أسماء المرافق أدناه بعد فتح كل طبيب.)`
+      : '';
     pushBot(
-      intro + parts.join('؛ ') + '. اضغط على اسم أي طبيب أدناه لعرض صفحته الكاملة والحجز منها مباشرة.'
+      intro + parts.join('؛ ') + '. اضغط على اسم أي طبيب أدناه لعرض صفحته الكاملة والحجز منها مباشرة.' + locationCaveat
       + actionsRow(doctors.map((d) => linkBtn(`${sndkBasePath()}/doctor/${encodeURIComponent(d.id)}`, d.name)).join('')),
     );
   }
