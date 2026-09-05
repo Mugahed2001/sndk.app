@@ -46,13 +46,57 @@ const SndkAssistant = (() => {
     ]);
   }
 
-  // يحوّل روابط https:// أو مسارات الموقع الجميلة (/facility/<id> إلخ) داخل
-  // ردّ مُهرَّب أصلاً (esc) إلى وصلات قابلة للنقر — بأمان: التهريب يسبق هذا
-  // دائماً، فلا نصّ خام غير مُهرَّب يدخل innerHTML مهما كتب النموذج.
-  function linkify(escapedText) {
-    return escapedText
-      .replace(/(https:\/\/snadk\.codeysaa\.com[^\s<]*)/g, '<a href="$1" style="color:var(--primary);font-weight:600;">$1</a>')
-      .replace(/(?<!href="|>)(\/(?:facility|doctor|camp|appointment)\/[a-zA-Z0-9-]+)/g, `<a href="${sndkBasePath()}$1" style="color:var(--primary);font-weight:600;">$1</a>`);
+  // Markdown خفيف مقصود لردّ النموذج فقط — رابطان بصيغة [اسم](رابط) وجداول
+  // (رأس + |---| + صفوف)، لا أكثر. لا يحلّل أي Markdown آخر (عناوين، تعداد
+  // نقطي...) عمداً؛ ليست حاجة النموذج هنا، وأي محلِّل أعمّ خطر تعقيد بلا
+  // فائدة. التهريب (esc) يسبق أي إدراج نصّ خام دائماً — لا استثناء.
+
+  // [الاسم](https://snadk.codeysaa.com/doctor|facility|camp/<id>) فقط — نطاق
+  // ومسارات الموقع الحقيقية حصراً (مطابق تماماً لما يفرضه system prompt
+  // الخادم)، لا أي رابط آخر قد يكتبه النموذج بالخطأ. الاسم وحده يظهر
+  // ويُنقَر، لا الرابط الخام أبداً — هذا ما طُلب صراحة.
+  const MD_LINK_RE = /\[([^\]]+)\]\(https:\/\/snadk\.codeysaa\.com\/(doctor|facility|camp)\/([a-zA-Z0-9-]+)\)/g;
+
+  function renderInline(rawText) {
+    // التهريب مرّة واحدة هنا على النصّ كاملاً قبل المطابقة — label بعد هذا
+    // مُهرَّب بالفعل، فلا يُعاد تهريبه في رد الاستبدال (تهريب مزدوج يكسر أي
+    // اسم فيه & أو علامة اقتباس: "&amp;" تصير "&amp;amp;" ظاهرة حرفياً).
+    return esc(rawText).replace(MD_LINK_RE, (_m, label, kind, id) =>
+      `<a href="${sndkBasePath()}/${kind}/${encodeURIComponent(id)}" style="color:var(--primary);font-weight:600;">${label}</a>`);
+  }
+
+  function isTableRow(line) {
+    return /^\s*\|.*\|\s*$/.test(line);
+  }
+  function isSeparatorRow(line) {
+    return isTableRow(line) && /^[\s|:-]+$/.test(line) && line.includes('-');
+  }
+  function splitTableRow(line) {
+    return line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
+  }
+
+  function renderMarkdownLite(text) {
+    const lines = (text || '').split('\n');
+    let html = '';
+    let i = 0;
+    while (i < lines.length) {
+      if (isTableRow(lines[i]) && i + 1 < lines.length && isSeparatorRow(lines[i + 1])) {
+        const header = splitTableRow(lines[i]);
+        i += 2;
+        const rows = [];
+        while (i < lines.length && isTableRow(lines[i])) { rows.push(splitTableRow(lines[i])); i++; }
+        const thCell = (c) => `<th style="padding:6px 10px;border-bottom:2px solid var(--border);text-align:start;font-size:12.5px;">${renderInline(c)}</th>`;
+        const tdCell = (c) => `<td style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:12.5px;">${renderInline(c)}</td>`;
+        html += `<div style="overflow-x:auto;margin:8px 0;"><table style="border-collapse:collapse;width:100%;">`
+          + `<tr>${header.map(thCell).join('')}</tr>`
+          + rows.map((r) => `<tr>${r.map(tdCell).join('')}</tr>`).join('')
+          + `</table></div>`;
+      } else {
+        html += renderInline(lines[i]) + (i < lines.length - 1 ? '<br>' : '');
+        i++;
+      }
+    }
+    return html;
   }
 
   function bubble(role, innerHtml) {
@@ -195,7 +239,7 @@ const SndkAssistant = (() => {
 
       if (reply) {
         popTyping();
-        pushBot(linkify(esc(reply)).replace(/\n/g, '<br>'));
+        pushBot(renderMarkdownLite(reply));
         apiHistory.push({ role: 'assistant', content: reply });
         return;
       }
