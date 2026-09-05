@@ -356,7 +356,7 @@ const SndkBooking = (() => {
         <div class="title-md mt-12" style="color:var(--text);">تمّ الحجز بنجاح</div>
         ${token ? `<p class="text-muted mt-8">رقم دورك: <strong>${esc(token)}</strong></p>` : ''}
         <button class="btn btn-filled btn-block mt-16" id="bookingDoneBtn">تم</button>
-        <a class="btn btn-outline btn-block mt-8" href="${sndkBasePath()}/appointments.html">عرض مواعيدي</a>
+        <a class="btn btn-outline btn-block mt-8" href="${sndkBasePath()}/appointments">عرض مواعيدي</a>
       </div>
     `);
     sheet.querySelector('#bookingDoneBtn').addEventListener('click', closeModal);
@@ -438,7 +438,7 @@ const SndkBooking = (() => {
             <div class="title-md mt-12" style="color:var(--text);">تمّ الدفع وتأكيد الحجز</div>
             ${token ? `<p class="text-muted mt-8">رقم دورك: <strong>${esc(token)}</strong></p>` : ''}
             <button class="btn btn-filled btn-block mt-16" id="payDoneBtn">تم</button>
-            <a class="btn btn-outline btn-block mt-8" href="${sndkBasePath()}/appointments.html">عرض مواعيدي</a>
+            <a class="btn btn-outline btn-block mt-8" href="${sndkBasePath()}/appointments">عرض مواعيدي</a>
           </div>
         `;
         body.querySelector('#payDoneBtn').addEventListener('click', closeModal);

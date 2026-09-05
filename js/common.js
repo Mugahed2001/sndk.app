@@ -40,7 +40,7 @@ const SNDK_PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.c
 function sndkAppOrStoreUrl() {
   if (!/Android/i.test(navigator.userAgent)) return SNDK_PLAY_STORE_URL;
   const fallback = encodeURIComponent(SNDK_PLAY_STORE_URL);
-  return `intent://sndk-codey.onrender.com/facility/#Intent;scheme=https;package=com.code_yemen.snd_health;S.browser_fallback_url=${fallback};end`;
+  return `intent://snadk.codeysaa.com/facility/#Intent;scheme=https;package=com.code_yemen.snd_health;S.browser_fallback_url=${fallback};end`;
 }
 
 /// ورقة سفلية مشتركة — نظير openModal/closeModal الخاصّتين سابقاً بـ
@@ -467,7 +467,7 @@ function doctorCardHtml(d, specialtiesById) {
 function wireDoctorCards(root) {
   root.querySelectorAll('.doctor-card-link').forEach((card) => {
     card.addEventListener('click', () => {
-      window.location.href = `${sndkBasePath()}/doctor.html?id=${encodeURIComponent(card.dataset.doctorId)}`;
+      window.location.href = `${sndkBasePath()}/doctor/${encodeURIComponent(card.dataset.doctorId)}`;
     });
   });
 }

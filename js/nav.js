@@ -70,19 +70,19 @@ function openNavDrawer() {
 
   function runSearch() {
     const q = sheet.querySelector('#navSearchInput').value.trim();
-    goTo(`/doctors.html${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+    goTo(`/doctors${q ? `?q=${encodeURIComponent(q)}` : ''}`);
   }
   sheet.querySelector('#navSearchBtn').addEventListener('click', runSearch);
   sheet.querySelector('#navSearchInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') runSearch();
   });
 
-  sheet.querySelector('#navFacilitiesBtn').addEventListener('click', () => goTo('/facilities.html'));
-  sheet.querySelector('#navDoctorsBtn').addEventListener('click', () => goTo('/doctors.html'));
-  sheet.querySelector('#navSpecialtiesBtn').addEventListener('click', () => goTo('/specialties.html'));
-  sheet.querySelector('#navCampsBtn').addEventListener('click', () => goTo('/camps.html'));
-  sheet.querySelector('#navBookingsBtn').addEventListener('click', () => goTo('/appointments.html'));
-  sheet.querySelector('#navAboutBtn').addEventListener('click', () => goTo('/about.html'));
+  sheet.querySelector('#navFacilitiesBtn').addEventListener('click', () => goTo('/facilities'));
+  sheet.querySelector('#navDoctorsBtn').addEventListener('click', () => goTo('/doctors'));
+  sheet.querySelector('#navSpecialtiesBtn').addEventListener('click', () => goTo('/specialties'));
+  sheet.querySelector('#navCampsBtn').addEventListener('click', () => goTo('/camps'));
+  sheet.querySelector('#navBookingsBtn').addEventListener('click', () => goTo('/appointments'));
+  sheet.querySelector('#navAboutBtn').addEventListener('click', () => goTo('/about'));
   sheet.querySelector('#navLogoutBtn')?.addEventListener('click', () => {
     SndkAuth.signOut();
     sndkCloseModal();

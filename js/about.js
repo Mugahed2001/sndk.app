@@ -107,4 +107,5 @@ async function main() {
   renderBenefits(catalog);
 }
 
+sndkPrettifyUrl('/about');
 main();

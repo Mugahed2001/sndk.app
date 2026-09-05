@@ -79,4 +79,5 @@ function renderTopbar() {
   document.getElementById('loginBtn')?.addEventListener('click', () => SndkAuthUI.openLoginModal(renderTopbar));
 }
 
+sndkPrettifyUrl('/doctors');
 main();

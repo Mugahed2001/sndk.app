@@ -4,7 +4,7 @@
 قاعدة بيانات تطبيق «سندك الطبي»، ويتيح الحجز والدخول ومشاركة المواعيد
 والمخيمات الطبية عبر نفس دوال الحافة (Supabase Edge Functions) التي يستعملها
 التطبيق — لا نسخة بيانات ثانية. مستضاف على Render.com كـ Static Site على
-`https://sndk-codey.onrender.com`.
+`https://snadk.codeysaa.com`.
 
 ## الروابط
 
@@ -96,4 +96,4 @@ js/404-redirect.js      إعادة التوجيه من 404.html وحده
 1. New → Static Site → اختر هذا الريبو والفرع `main`.
 2. Build Command: فارغ. Publish Directory: `.`
 3. Root Directory: اتركه فارغاً (هذا الحقل لمجلّد فرعي في monorepo، لا للملف الرئيسي).
-4. لا نطاق مخصّص حالياً — الرابط المباشر `https://sndk-codey.onrender.com` كافٍ.
+4. نطاق مخصّص مربوط: `snadk.codeysaa.com` (Custom Domain في إعدادات الخدمة على Render).

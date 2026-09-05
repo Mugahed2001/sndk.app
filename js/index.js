@@ -52,7 +52,7 @@ async function loadFeaturedDoctors() {
 
 function runHomeSearch() {
   const q = document.getElementById('homeSearchInput').value.trim();
-  window.location.href = `${sndkBasePath()}/doctors.html${q ? `?q=${encodeURIComponent(q)}` : ''}`;
+  window.location.href = `${sndkBasePath()}/doctors${q ? `?q=${encodeURIComponent(q)}` : ''}`;
 }
 document.getElementById('homeSearchBtn').addEventListener('click', runHomeSearch);
 document.getElementById('homeSearchInput').addEventListener('keydown', (e) => {
@@ -78,7 +78,7 @@ function goToFacility() {
     alert('لم أتعرّف على رابط أو معرّف مرفق صالح.');
     return;
   }
-  window.location.href = sndkBasePath() + '/facility.html?id=' + encodeURIComponent(id);
+  window.location.href = sndkBasePath() + '/facility/' + encodeURIComponent(id);
 }
 
 document.getElementById('goToFacilityBtn').addEventListener('click', goToFacility);

@@ -89,7 +89,7 @@ class SndkDeletionError extends Error {
     if (this.status === 401 || this.status === 403) {
       return 'انتهت جلستك. سجّل الخروج ثم الدخول من جديد وأعد المحاولة.';
     }
-    return 'تعذّر تنفيذ الطلب. حاول لاحقاً أو راسلنا على privacy@sndk-codey.onrender.com.';
+    return 'تعذّر تنفيذ الطلب. حاول لاحقاً أو راسلنا على privacy@snadk.codeysaa.com.';
   }
 }
 
@@ -243,6 +243,7 @@ async function renderDeletionBody() {
   });
 }
 
+sndkPrettifyUrl('/delete-account');
 renderTopbar();
 renderDeletionBody();
 SndkAuth.onChange(() => {

@@ -28,28 +28,28 @@ function render(phase, data) {
         <svg width="56" height="56" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="var(--primary)" stroke-width="2"/><path d="M8 12l3 3 5-6" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <div class="title-md mt-12" style="color:var(--text);">تمّ الدفع وتأكيد الحجز</div>
         <p class="text-muted mt-8">يمكنك متابعة موعدك وباركوده من صفحة مواعيدي.</p>
-        <a class="btn btn-filled btn-block mt-16" href="${sndkBasePath()}/appointments.html">عرض مواعيدي</a>
+        <a class="btn btn-filled btn-block mt-16" href="${sndkBasePath()}/appointments">عرض مواعيدي</a>
       </div>
     `;
   } else if (phase === 'failed') {
     root.innerHTML = `
       <div class="state-box">
         <div class="banner banner-error" style="justify-content:center;">لم يكتمل الدفع — يمكنك إعادة المحاولة من صفحة مواعيدك.</div>
-        <a class="btn btn-filled btn-block mt-16" href="${sndkBasePath()}/appointments.html">عرض مواعيدي</a>
+        <a class="btn btn-filled btn-block mt-16" href="${sndkBasePath()}/appointments">عرض مواعيدي</a>
       </div>
     `;
   } else if (phase === 'timedOut') {
     root.innerHTML = `
       <div class="state-box">
         <div class="banner banner-warn" style="justify-content:center;">لم تصلنا نتيجة الدفع بعد — قد تكون قد تمّت فعلاً. راجع صفحة مواعيدك للتأكّد.</div>
-        <a class="btn btn-filled btn-block mt-16" href="${sndkBasePath()}/appointments.html">عرض مواعيدي</a>
+        <a class="btn btn-filled btn-block mt-16" href="${sndkBasePath()}/appointments">عرض مواعيدي</a>
       </div>
     `;
   } else if (phase === 'error') {
     root.innerHTML = `
       <div class="state-box">
         <div class="banner banner-error" style="justify-content:center;">${esc(data || 'تعذّر التحقّق من نتيجة الدفع.')}</div>
-        <a class="btn btn-filled btn-block mt-16" href="${sndkBasePath()}/appointments.html">عرض مواعيدي</a>
+        <a class="btn btn-filled btn-block mt-16" href="${sndkBasePath()}/appointments">عرض مواعيدي</a>
       </div>
     `;
   } else if (phase === 'invalid') {

@@ -24,7 +24,7 @@ async function main() {
     (a.arabic_name || a.name || '').localeCompare(b.arabic_name || b.name || '', 'ar'));
 
   body.innerHTML = sorted.map((s) => `
-    <a class="card card-pad feature-card" href="${sndkBasePath()}/doctors.html?specialty_id=${encodeURIComponent(s.id)}" style="text-decoration:none;color:inherit;">
+    <a class="card card-pad feature-card" href="${sndkBasePath()}/doctors?specialty_id=${encodeURIComponent(s.id)}" style="text-decoration:none;color:inherit;">
       <div class="section-icon">${SNDK_ICONS.stethoscope(18)}</div>
       <div><h3>${esc(s.arabic_name || s.name)}</h3></div>
     </a>
@@ -41,4 +41,5 @@ function renderTopbar() {
   document.getElementById('loginBtn')?.addEventListener('click', () => SndkAuthUI.openLoginModal(renderTopbar));
 }
 
+sndkPrettifyUrl('/specialties');
 main();

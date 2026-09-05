@@ -30,21 +30,50 @@
     return;
   }
 
+  // صفحاتٌ بلا معرّف في المسار — الاستعلام (لو وُجد، كـ specialty_id أو q)
+  // يُعاد إلحاقه كما هو؛ js/<page>.js يقرأه ثم يُصلح شريط العنوان بـ
+  // sndkPrettifyUrl عند التحميل.
+  const search = window.location.search;
+
   const facilitiesMatch = rest.match(/^\/facilities\/?$/);
   if (facilitiesMatch) {
-    window.location.replace(`${base}/facilities.html`);
+    window.location.replace(`${base}/facilities.html${search}`);
     return;
   }
 
   const doctorsMatch = rest.match(/^\/doctors\/?$/);
   if (doctorsMatch) {
-    window.location.replace(`${base}/doctors.html`);
+    window.location.replace(`${base}/doctors.html${search}`);
     return;
   }
 
   const specialtiesMatch = rest.match(/^\/specialties\/?$/);
   if (specialtiesMatch) {
-    window.location.replace(`${base}/specialties.html`);
+    window.location.replace(`${base}/specialties.html${search}`);
+    return;
+  }
+
+  const aboutMatch = rest.match(/^\/about\/?$/);
+  if (aboutMatch) {
+    window.location.replace(`${base}/about.html${search}`);
+    return;
+  }
+
+  const appointmentsMatch = rest.match(/^\/appointments\/?$/);
+  if (appointmentsMatch) {
+    window.location.replace(`${base}/appointments.html${search}`);
+    return;
+  }
+
+  const deleteAccountMatch = rest.match(/^\/delete-account\/?$/);
+  if (deleteAccountMatch) {
+    window.location.replace(`${base}/delete-account.html${search}`);
+    return;
+  }
+
+  const privacyMatch = rest.match(/^\/privacy\/?$/);
+  if (privacyMatch) {
+    window.location.replace(`${base}/privacy.html${search}`);
     return;
   }
 

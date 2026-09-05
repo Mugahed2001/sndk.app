@@ -262,4 +262,5 @@ async function main() {
   load();
 }
 
+sndkPrettifyUrl('/appointments');
 main();
