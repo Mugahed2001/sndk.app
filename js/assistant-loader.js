@@ -15,7 +15,12 @@ const SndkAssistantLoader = (() => {
   let loadPromise = null;
 
   function ensureAssistantLoaded() {
-    if (window.SndkAssistant) return Promise.resolve();
+    // لا "window.SndkAssistant": هذا متغيّر top-level بـconst في assistant.js
+    // — لا يصير خاصّية على window كما var/function (سلوك JS قياسي)، فالفحص
+    // بـwindow. كان دائماً false حتى بعد نجاح التحميل، فيرمي `.open()`
+    // التالي خطأً يُبتلَع صامتاً في catch — هذا سبب "لا خطأ في الكونسول
+    // لكن المساعد لم يظهر" بالحرف.
+    if (typeof SndkAssistant !== 'undefined') return Promise.resolve();
     if (loadPromise) return loadPromise;
     loadPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script');
@@ -38,7 +43,7 @@ const SndkAssistantLoader = (() => {
     if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner" style="border-color:rgba(255,255,255,.4);border-top-color:#fff;width:18px;height:18px;"></div>'; }
     try {
       await ensureAssistantLoaded();
-      window.SndkAssistant.open();
+      SndkAssistant.open();
     } catch (_) {
       alert('تعذّر تحميل المساعد — تحقّق من الاتصال وحاول مجدداً.');
     } finally {
