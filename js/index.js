@@ -15,6 +15,8 @@ renderTopbar();
 const homeDownloadBtn = document.getElementById('homeDownloadBtn');
 if (homeDownloadBtn) homeDownloadBtn.href = sndkAppOrStoreUrl();
 
+document.getElementById('homeAssistantBtn')?.addEventListener('click', () => SndkAssistant.open());
+
 async function loadFeaturedFacilities() {
   const body = document.getElementById('featuredFacilities');
   try {
