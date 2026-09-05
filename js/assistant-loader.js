@@ -19,7 +19,12 @@ const SndkAssistantLoader = (() => {
     if (loadPromise) return loadPromise;
     loadPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = `js/assistant.js${VERSION_QUERY ? `?${VERSION_QUERY}` : ''}`;
+      // مسار مطلق لا نسبي — عمداً: بعد sndkPrettifyUrl() قد يصبح شريط
+      // العنوان "/facility/<uuid>" (مقطعان بلا .html)، فيحلّ المتصفح مساراً
+      // نسبياً كـ"js/assistant.js" أسفل "/facility/" لا أسفل الجذر —
+      // "js/facility/js/assistant.js" (404). نفس الحيلة المستعملة أصلاً في
+      // 404.html (`/js/routing.js`) وكل روابط sndkBasePath() في الموقع.
+      script.src = `${sndkBasePath()}/js/assistant.js${VERSION_QUERY ? `?${VERSION_QUERY}` : ''}`;
       script.onload = () => resolve();
       script.onerror = () => { loadPromise = null; reject(new Error('تعذّر تحميل المساعد')); };
       document.body.appendChild(script);

@@ -14,7 +14,10 @@ function ensureQrCodeLoaded() {
   if (qrCodeLoadPromise) return qrCodeLoadPromise;
   qrCodeLoadPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = `js/qrcode.js${APPT_SCRIPT_VERSION_QUERY ? `?${APPT_SCRIPT_VERSION_QUERY}` : ''}`;
+    // مسار مطلق لا نسبي — نفس سبب assistant-loader.js: الأمان من أي مسار
+    // جميل مستقبلي متعدّد المقاطع، لا لأنّ /appointments (مقطع واحد) نفسها
+    // معطوبة اليوم.
+    script.src = `${sndkBasePath()}/js/qrcode.js${APPT_SCRIPT_VERSION_QUERY ? `?${APPT_SCRIPT_VERSION_QUERY}` : ''}`;
     script.onload = () => resolve();
     script.onerror = () => { qrCodeLoadPromise = null; reject(new Error('تعذّر تحميل مولّد الباركود')); };
     document.body.appendChild(script);
