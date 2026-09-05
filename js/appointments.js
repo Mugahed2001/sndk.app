@@ -4,7 +4,23 @@
 // جاهزة أيضاً). نمط التبويبين من camps.js حرفياً.
 // esc/wireImageFallbacks/PERIOD_LABELS من common.js، sndkBasePath من
 // routing.js، SndkBooking.openPaymentSheet من booking.js، QRCode من
-// js/qrcode.js (مكتبة موَرَّدة محلياً — انظر تعليق رأسها).
+// js/qrcode.js (مكتبة موَرَّدة محلياً — انظر تعليق رأسها) — ~٣٤ك.ب لا تُحمَّل
+// إلا عند أول ضغطة فعلية على «الباركود» (ensureQrCodeLoaded)، لا مع الصفحة.
+
+const APPT_SCRIPT_VERSION_QUERY = (document.currentScript && document.currentScript.src.split('?')[1]) || '';
+let qrCodeLoadPromise = null;
+function ensureQrCodeLoaded() {
+  if (window.QRCode) return Promise.resolve();
+  if (qrCodeLoadPromise) return qrCodeLoadPromise;
+  qrCodeLoadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = `js/qrcode.js${APPT_SCRIPT_VERSION_QUERY ? `?${APPT_SCRIPT_VERSION_QUERY}` : ''}`;
+    script.onload = () => resolve();
+    script.onerror = () => { qrCodeLoadPromise = null; reject(new Error('تعذّر تحميل مولّد الباركود')); };
+    document.body.appendChild(script);
+  });
+  return qrCodeLoadPromise;
+}
 
 const APPT_STATUS_LABELS = {
   pending: 'بانتظار التأكيد',
@@ -122,23 +138,34 @@ function apptCardHtml(a) {
   `;
 }
 
-function showQrModal(reference) {
+async function showQrModal(reference) {
   const sheet = sndkOpenModal(`
     <div class="state-box">
       <div class="title-md" style="color:var(--text);">باركود الموعد</div>
-      <div id="qrCanvas" style="display:flex;justify-content:center;margin:16px 0;"></div>
+      <div id="qrCanvas" style="display:flex;justify-content:center;margin:16px 0;"><div class="spinner spinner-dark"></div></div>
       <p class="text-muted">${esc(reference)}</p>
       <button class="btn btn-filled btn-block mt-8" id="qrDoneBtn">تم</button>
     </div>
   `);
-  new QRCode(sheet.querySelector('#qrCanvas'), {
+  sheet.querySelector('#qrDoneBtn').addEventListener('click', sndkCloseModal);
+
+  try {
+    await ensureQrCodeLoaded();
+  } catch (err) {
+    const canvas = sheet.querySelector('#qrCanvas');
+    if (canvas) canvas.innerHTML = `<p class="text-muted">${esc(err.message)}</p>`;
+    return;
+  }
+  const canvas = sheet.querySelector('#qrCanvas');
+  if (!canvas) return; // أُغلقت الورقة قبل اكتمال التحميل
+  canvas.innerHTML = '';
+  new QRCode(canvas, {
     text: reference,
     width: 200,
     height: 200,
     colorDark: '#0A7B93',
     colorLight: '#ffffff',
   });
-  sheet.querySelector('#qrDoneBtn').addEventListener('click', sndkCloseModal);
 }
 
 function confirmCancel(appointmentId, onDone) {

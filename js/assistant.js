@@ -686,18 +686,8 @@ const SndkAssistant = (() => {
     panelEl = null;
   }
 
-  function mountTrigger() {
-    if (document.getElementById('asstTriggerBtn')) return;
-    const btn = document.createElement('button');
-    btn.id = 'asstTriggerBtn';
-    btn.className = 'asst-trigger';
-    btn.title = 'مساعد سندك الطبي';
-    btn.innerHTML = SNDK_ICONS.chat(22, '#fff');
-    btn.addEventListener('click', open);
-    document.body.appendChild(btn);
-  }
-
-  mountTrigger();
+  // زرّ الفتح العائم يملكه الآن js/assistant-loader.js (يحمّل هذا الملف عند
+  // أول ضغطة عليه بدل تحميله دائماً) — لا مِثله هنا.
 
   return { open, close };
 })();
