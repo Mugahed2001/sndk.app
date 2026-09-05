@@ -150,6 +150,40 @@ const SndkAuth = (() => {
     }
   }
 
+  // خروج تلقائي بعد خمول — الجلسة مخزَّنة في localStorage (يقرأها أي سكربت
+  // يعمل في الصفحة)، فتقليص عمرها الفعلي على المتصفّح يقلّل نافذة استغلال
+  // توكن مسروق بثغرة XSS مستقبلية أو جهازاً تُرك مفتوحاً — قبل أي حساب
+  // مدير نظام/مدير مرافق يُضاف لاحقاً، حيث الخطر أعلى بكثير من جلسة مريض.
+  // ليست بديلاً عن انتهاء التوكن الحقيقي من الخادم — إجراء دفاعي إضافي فقط.
+  const IDLE_TIMEOUT_MS = 20 * 60 * 1000;
+  let idleTimer = null;
+
+  function stopIdleTimer() {
+    if (idleTimer) {
+      clearTimeout(idleTimer);
+      idleTimer = null;
+    }
+  }
+
+  function resetIdleTimer() {
+    if (!isLoggedIn()) return;
+    stopIdleTimer();
+    idleTimer = setTimeout(() => {
+      signOut();
+      window.location.reload();
+    }, IDLE_TIMEOUT_MS);
+  }
+
+  ['mousedown', 'keydown', 'touchstart', 'scroll'].forEach((evt) => {
+    window.addEventListener(evt, resetIdleTimer, { passive: true });
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') resetIdleTimer();
+  });
+
+  onChange((s) => { if (s) resetIdleTimer(); else stopIdleTimer(); });
+  if (isLoggedIn()) resetIdleTimer();
+
   return {
     isLoggedIn,
     currentUser,
