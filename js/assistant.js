@@ -139,6 +139,9 @@ const SndkAssistant = (() => {
 
   const FALLBACK_CAMP_WORDS = ['مخيم', 'مخيمات'];
   const FALLBACK_BOOKING_WORDS = ['موعد', 'مواعيد', 'حجز', 'احجز'];
+  // كلمات تدلّ على طلب «جدول/دوام مرفق» تحديداً (لا حجز عامّ). مع كلمة مرفق
+  // وبلا كلمة طبيب ⇒ نعرض كل جدولات ذلك المرفق (لا الأطباء فقط).
+  const FALLBACK_SCHEDULE_WORDS = ['موعد', 'مواعيد', 'جدول', 'جداول', 'دوام', 'اوقات', 'اوقات العمل', 'ايام العمل'];
   const FALLBACK_DOCTOR_WORDS = ['طبيب', 'أطباء', 'اطباء', 'دكتور', 'دكاترة'];
   const FALLBACK_FACILITY_WORDS = ['مستشفى', 'مستشفيات', 'عيادة', 'عيادات', 'مركز طبي', 'مراكز', 'مرفق', 'مرافق', 'مستوصف'];
   const FALLBACK_REPORT_WORDS = ['تقرير', 'احصائية', 'احصائيات', 'إحصائية', 'إحصائيات', 'ملخص', 'كم عدد', 'كم مرفق', 'كم مستشفى', 'كم طبيب', 'كم مدينة'];
@@ -259,6 +262,14 @@ const SndkAssistant = (() => {
       if (facilityQuery) return { type: 'facility_doctors', facilityQuery };
     }
 
+    // «مواعيد/جدول/دوام مستشفى كذا» — مرفق محدَّد بلا ذكر طبيب: كل جدولاته
+    // (بحجز إلكتروني وبدونه)، لا رسالة حجز عامّة.
+    const mentionsSchedule = FALLBACK_SCHEDULE_WORDS.some((w) => n.includes(normalizeSimple(w)));
+    if (mentionsFacilityType && mentionsSchedule && !mentionsDoctor) {
+      const facilityQuery = stripSimpleWords(n, [...FALLBACK_NOISE_WORDS, ...FALLBACK_SCHEDULE_WORDS, ...FALLBACK_FACILITY_WORDS, ...FALLBACK_BOOKING_WORDS]);
+      if (facilityQuery) return { type: 'facility_schedules', facilityQuery };
+    }
+
     const specialties = await loadFallbackSpecialties();
     const matchedSpecialty = specialties.find((s) => {
       const name = normalizeSimple(s.arabic_name || s.name || '');
@@ -352,6 +363,65 @@ const SndkAssistant = (() => {
       + actionsRow(linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(facility.id)}`, 'فتح صفحة المرفق'));
   }
 
+  // "مواعيد مستشفى بضه" — كل جدولات المرفق كما هي: التي فيها حجز إلكتروني
+  // والتي بدونه معاً. get-clinic-schedules يُعيد جدولات المرفق كاملةً عند
+  // تمرير facility_id صريح (بوّابة الاشتراك تخصّ التصفّح العام فقط). حالة
+  // الحجز الإلكتروني تُعرض كعمود لكل صفّ لا كإخفاء.
+  function scheduleGroupLabel(s) {
+    return (s.sub_facility && s.sub_facility.name)
+      || (s.specialties && (s.specialties.arabic_name || s.specialties.name))
+      || 'غير محدد';
+  }
+
+  async function handleFacilitySchedulesIntent(facilityQuery) {
+    let matches = [];
+    try {
+      const rows = await withTimeout(SndkApi.getData('get-facilities', { query: { q: facilityQuery, limit: 5 } }));
+      matches = Array.isArray(rows) ? rows : [];
+    } catch (_) { /* استمرّ بلا نتائج */ }
+
+    if (matches.length === 0) {
+      return `طلبك: مواعيد مرفق «${esc(facilityQuery)}» — لا مرفق مطابق في البحث المبسّط. تصفّح كل المرافق من ${linkBtn(`${sndkBasePath()}/facilities`, 'هنا')}.`;
+    }
+    const facility = matches[0];
+    const [schedules, bookingIdsArr] = await Promise.all([
+      loadFacilitySchedules(facility.id),
+      fetchBookingFacilityIds().catch(() => null),
+    ]);
+    const facilityBookable = Array.isArray(bookingIdsArr) && new Set(bookingIdsArr).has(facility.id);
+    const ambiguityNote = matches.length > 1 ? ` (من بين ${matches.length} مرافق مطابقة، الأقرب: ${esc(facility.name)})` : '';
+    const intro = `طلبك: مواعيد مرفق «${esc(facilityQuery)}»${ambiguityNote} — ${esc(facility.name)}: كل الجدولات المعلَنة (بحجز إلكتروني وبدونه).`;
+
+    if (schedules.length === 0) {
+      return `${intro} لا مواعيد معلَنة لهذا المرفق حالياً.`
+        + actionsRow(linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(facility.id)}`, 'فتح صفحة المرفق'));
+    }
+
+    const dayOrder = (s) => (Array.isArray(s.working_days) && s.working_days.length ? Math.min(...s.working_days) : 99);
+    schedules.sort((a, b) => dayOrder(a) - dayOrder(b)
+      || (a.period || '').localeCompare(b.period || '')
+      || ((a.doctors && a.doctors.name) || '').localeCompare((b.doctors && b.doctors.name) || '', 'ar'));
+
+    const rows = schedules.map((s) => {
+      const period = PERIOD_LABELS[s.period] || s.period || '—';
+      const time = s.start_time && s.end_time ? `${s.start_time.slice(0, 5)} – ${s.end_time.slice(0, 5)}` : '';
+      const days = workingDaysLabel(s.working_days) || 'لم يحدد';
+      return [
+        s.doctors ? linkBtn(`${sndkBasePath()}/doctor/${encodeURIComponent(s.doctors.id)}`, s.doctors.name) : esc('—'),
+        esc(scheduleGroupLabel(s)),
+        esc(days),
+        esc([period, time].filter(Boolean).join(' · ')),
+        facilityBookable ? 'متاح' : 'غير متاح',
+      ];
+    });
+    return intro
+      + tableHtml(['الطبيب', 'القسم', 'الأيام', 'الفترة والوقت', 'حجز إلكتروني'], rows)
+      + (facilityBookable
+        ? ''
+        : '<div class="text-muted mt-8" style="font-size:12px;">الحجز الإلكتروني غير مفعَّل لهذا المرفق — تواصل معه مباشرة عبر صفحته.</div>')
+      + actionsRow(linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(facility.id)}`, 'فتح صفحة المرفق'));
+  }
+
   async function handleSearchIntent(raw, matchedSpecialty, specialties) {
     let doctors = [];
     let facilities = [];
@@ -435,6 +505,7 @@ const SndkAssistant = (() => {
       case 'report': return await handleReportIntent();
       case 'greeting': return handleGreetingIntent();
       case 'facility_doctors': return await handleFacilityDoctorsIntent(intent.facilityQuery);
+      case 'facility_schedules': return await handleFacilitySchedulesIntent(intent.facilityQuery);
       case 'booking_generic': return handleBookingGenericIntent();
       default: return await handleSearchIntent(raw, intent.matchedSpecialty, intent.specialties);
     }
