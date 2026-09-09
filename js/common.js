@@ -28,6 +28,17 @@ function cleanPhone(p) {
   return (p || '').replace(/\s+/g, '');
 }
 
+/// خطأ إملائي شائع جداً في العربية (ة/ه) كان يُعيد صفر نتائج في بحث الأطباء
+/// والمرافق رغم وجود المطابقة فعلياً بالتهجئة الأخرى — رُصد حيّاً ("الصفوه"
+/// لم يطابق "الصفوة" المخزَّنة). `ilike` الخادم مطابقة نصّية حرفية لا لغوية،
+/// فالحل: مُستدعي البحث يجرّب كل ة⇄ه إن فشلت السلسلة كما كُتبت أولاً.
+function spellingVariants(q) {
+  const variants = new Set([q]);
+  if (q.includes('ة')) variants.add(q.replace(/ة/g, 'ه'));
+  if (q.includes('ه')) variants.add(q.replace(/ه/g, 'ة'));
+  return [...variants];
+}
+
 const SNDK_PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.code_yemen.snd_health';
 
 /// رابط زرّ «حمّل التطبيق»: على أندرويد يُحوَّل عبر `intent://` إلى فتح
@@ -441,11 +452,35 @@ function wireFacilityCards(root) {
   });
 }
 
+/// أول مرفقٍ نشط للطبيب (من التضمين `facility_doctors(...facilities(...))`
+/// في get-doctors) — طبيبٌ قد يعمل في عدّة مرافق، لكن بطاقة/رأس صفحة سريعة
+/// تحتاج واحداً يُعرض فوراً لا قائمة كاملة. `null` إن غاب التضمين (نداءٍ لا
+/// يطلبه، كأزرار المرافق في وضعٍ آخر) أو خلا الطبيب من أي ارتباط نشط.
+function doctorPrimaryFacility(d) {
+  const links = Array.isArray(d.facility_doctors) ? d.facility_doctors : [];
+  const active = links.find((l) => l.facilities && l.facilities.is_active !== false && !l.facilities.deleted_at);
+  return active ? active.facilities : null;
+}
+
+/// "أين هو؟" — أهم فجوة كشفها تقييم مستخدم حيّ (فشلت خلال اختبار ١٠ ثوانٍ
+/// لصفحة الطبيب لأن لا مدينة تظهر إطلاقاً). المدينة أولاً ثم المنطقة/
+/// المديرية/المعلم — من الأعمّ إلى الأدقّ.
+function doctorLocationLabel(d) {
+  const f = doctorPrimaryFacility(d);
+  if (!f) return '';
+  const parts = [f.city, f.district, f.directorate, f.nearby_landmark].filter(Boolean);
+  const links = Array.isArray(d.facility_doctors) ? d.facility_doctors : [];
+  const moreCount = links.filter((l) => l.facilities && l.facilities.is_active !== false && !l.facilities.deleted_at).length - 1;
+  const suffix = moreCount > 0 ? ` (+${moreCount} مرافق أخرى)` : '';
+  return parts.length ? `${parts.join('، ')}${suffix}` : '';
+}
+
 /// بطاقة طبيب — مشتركة بين doctors.js وindex.js. specialtiesById خريطة
 /// اختيارية id→صفّ تخصص (لعرض اسمه دون نداءٍ إضافي لكل بطاقة).
 function doctorCardHtml(d, specialtiesById) {
   const specialty = specialtiesById ? specialtiesById[d.specialty_id] : null;
   const specialtyName = specialty ? (specialty.arabic_name || specialty.name) : '';
+  const location = doctorLocationLabel(d);
   return `
     <div class="card card-pad mb-12 doctor-card-link" data-doctor-id="${esc(d.id)}" style="cursor:pointer;">
       <div class="row gap-12">
@@ -457,6 +492,7 @@ function doctorCardHtml(d, specialtiesById) {
         <div style="flex:1;min-width:0;">
           <div style="font-weight:700;">${esc(d.name)}</div>
           ${specialtyName ? `<div class="text-muted mt-8">${esc(specialtyName)}</div>` : ''}
+          ${location ? `<div class="row wrap gap-8 mt-8"><span class="chip" style="background:${SNDK_HEX.primary}1F;color:${SNDK_HEX.primary};">${esc(location)}</span></div>` : ''}
           ${d.rating > 0 ? `<div class="row gap-8 mt-8">${SNDK_ICONS.star(14)}<span class="text-muted">${esc(String(d.rating))} (${esc(String(d.reviews_count || 0))})</span></div>` : ''}
         </div>
       </div>

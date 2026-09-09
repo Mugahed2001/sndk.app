@@ -6,6 +6,42 @@
 
 let doctorsSearchTimer = null;
 let specialtiesById = {};
+let specialtiesList = [];
+
+// "دكتور أطفال" في صندوق بحث نصّه يقول "ابحث عن طبيب أو تخصص" كان يُرسَل
+// حرفياً كاسمٍ (get-doctors.q يطابق العمود name فقط) فيعود بلا نتائج مطلقاً
+// — أكبر فجوة كشفها تقييم مستخدم حيّ (السيناريو الأول بالكامل). كلمات
+// الطبيب/التخصيص العامة تُسقَط أولاً، وما تبقّى يُقارَن بأسماء التخصصات
+// الحقيقية؛ تطابقٌ يُحوَّل تلقائياً لفلتر تخصص بدل نص اسمٍ لن يجد شيئاً.
+const DOCTOR_FILLER_WORDS = ['دكتور', 'دكاترة', 'طبيب', 'أطباء', 'اطباء', 'طيب', 'اطبا', 'دختر', 'حكيم', 'في', 'من'];
+
+function normalizeSimple(t) {
+  return (t || '')
+    .replace(/[ً-ٰ]/g, '')
+    .replace(/[إأآا]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .toLowerCase()
+    .trim();
+}
+
+const DOCTOR_FILLER_WORDS_NORM = new Set(DOCTOR_FILLER_WORDS.map(normalizeSimple));
+
+// مطابقة كلمة-بكلمة لا سلسلة كاملة: تخصصات كثيرة أسماؤها متعدّدة الكلمات
+// ("الاطفال وحديثي الولادة") — طلبٌ بكلمة واحدة فقط ("أطفال") لن يكون أبداً
+// سلسلة فرعية من الاسم الكامل، فمقارنة `n.includes(fullName)` تفشل دائماً
+// في هذه الحالة رغم صحّة المطابقة منطقياً (نفس عطل حقيقي رُصد أثناء الكتابة).
+function findMatchedSpecialty(rawQuery) {
+  const words = normalizeSimple(rawQuery).split(' ').filter((w) => w && !DOCTOR_FILLER_WORDS_NORM.has(w));
+  if (!words.length) return null;
+  return specialtiesList.find((s) => {
+    const name = normalizeSimple(s.arabic_name || s.name || '');
+    const specialtyWords = name.split(' ')
+      .map((w) => (w.startsWith('ال') ? w.slice(2) : w))
+      .filter((w) => w.length >= 3);
+    return words.some((w) => specialtyWords.some((sw) => sw === w || sw.includes(w) || w.includes(sw)));
+  }) || null;
+}
 
 async function main() {
   renderTopbar();
@@ -19,6 +55,7 @@ async function main() {
   try {
     const specialties = await SndkApi.getData('get-specialties', { query: { limit: 200 } });
     if (Array.isArray(specialties)) {
+      specialtiesList = specialties;
       specialtiesById = Object.fromEntries(specialties.map((s) => [s.id, s]));
       const select = document.getElementById('specialtyFilterSelect');
       for (const s of specialties.sort((a, b) => (a.arabic_name || a.name || '').localeCompare(b.arabic_name || b.name || '', 'ar'))) {
@@ -47,13 +84,35 @@ async function loadDoctors(q, specialtyId) {
   const body = document.getElementById('doctorsBody');
   body.innerHTML = '<div class="skeleton" style="height:90px;"></div><div class="skeleton" style="height:90px;"></div>';
 
-  const query = { limit: 60 };
-  if (q) query.q = q;
-  if (specialtyId) query.specialty_id = specialtyId;
+  // النصّ يطابق تخصصاً معروفاً ولا تخصص مُختار صراحةً من القائمة ⇒ فلترة
+  // بالتخصص لا بالاسم. القائمة المنسدلة تُحدَّث بصرياً لتوضيح لماذا تغيّرت
+  // النتائج بدل تخصيصٍ صامت لا يفهم المستخدم سببه.
+  let effectiveSpecialtyId = specialtyId;
+  let effectiveQ = q;
+  if (!specialtyId && q) {
+    const matched = findMatchedSpecialty(q);
+    if (matched) {
+      effectiveSpecialtyId = matched.id;
+      effectiveQ = '';
+      const select = document.getElementById('specialtyFilterSelect');
+      if (select) select.value = matched.id;
+    }
+  }
 
-  let doctors;
+  let doctors = [];
   try {
-    doctors = await SndkApi.getData('get-doctors', { query });
+    if (effectiveQ) {
+      for (const variant of spellingVariants(effectiveQ)) {
+        const query = { limit: 60, q: variant };
+        if (effectiveSpecialtyId) query.specialty_id = effectiveSpecialtyId;
+        doctors = await SndkApi.getData('get-doctors', { query });
+        if (Array.isArray(doctors) && doctors.length) break;
+      }
+    } else {
+      const query = { limit: 60 };
+      if (effectiveSpecialtyId) query.specialty_id = effectiveSpecialtyId;
+      doctors = await SndkApi.getData('get-doctors', { query });
+    }
   } catch (err) {
     body.innerHTML = `<div class="state-box">تعذّر تحميل الأطباء.<br>${esc(err.message)}</div>`;
     return;

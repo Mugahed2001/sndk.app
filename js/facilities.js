@@ -21,9 +21,16 @@ async function loadFacilities(q) {
   const body = document.getElementById('facilitiesBody');
   body.innerHTML = '<div class="skeleton" style="height:120px;"></div><div class="skeleton" style="height:120px;"></div>';
 
-  let facilities;
+  let facilities = [];
   try {
-    facilities = await SndkApi.getData('get-facilities', { query: q ? { q, limit: 60 } : { limit: 60 } });
+    if (q) {
+      for (const variant of spellingVariants(q)) {
+        facilities = await SndkApi.getData('get-facilities', { query: { q: variant, limit: 60 } });
+        if (Array.isArray(facilities) && facilities.length) break;
+      }
+    } else {
+      facilities = await SndkApi.getData('get-facilities', { query: { limit: 60 } });
+    }
   } catch (err) {
     body.innerHTML = `<div class="state-box">تعذّر تحميل المرافق.<br>${esc(err.message)}</div>`;
     return;
