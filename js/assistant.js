@@ -76,7 +76,7 @@ const SndkAssistant = (() => {
   const FALLBACK_FACILITY_WORDS = ['مستشفى', 'مستشفيات', 'عيادة', 'عيادات', 'مركز طبي', 'مراكز', 'مرفق', 'مرافق', 'مستوصف'];
   const FALLBACK_REPORT_WORDS = ['تقرير', 'احصائية', 'احصائيات', 'إحصائية', 'إحصائيات', 'ملخص', 'كم عدد', 'كم مرفق', 'كم مستشفى', 'كم طبيب', 'كم مدينة'];
   const FALLBACK_GREETING_WORDS = ['مرحبا', 'اهلا', 'السلام عليكم', 'هاي', 'صباح الخير', 'مساء الخير'];
-  const FALLBACK_NOISE_WORDS = ['اريد', 'ابحث عن', 'ابغى', 'ابي', 'من فضلك', 'ابحث', 'عن', 'في', 'لي', 'هل يوجد', 'هل', 'يوجد', 'ما هو', 'ما هي', 'يمكن', 'يمكنني', 'الذي', 'التي', 'بها', 'به'];
+  const FALLBACK_NOISE_WORDS = ['اريد', 'ابحث عن', 'ابغى', 'ابي', 'من فضلك', 'ابحث', 'عن', 'في', 'لي', 'هل يوجد', 'هل', 'يوجد', 'ما هو', 'ما هي', 'يمكن', 'يمكنني', 'الذي', 'التي', 'بها', 'به', 'لماذا', 'ليش', 'كيف', 'متى', 'غير موجود', 'غير موجوده', 'غير', 'موجود', 'موجوده'];
 
   // إزالة كلمة/عبارة ككلمة كاملة محاطة بفراغ فقط — لا كأي مطابقة جزئية داخل
   // كلمة أطول. بلا هذا الحرص: normalize("مستشفى") == "مستشفي"، وحرف "في"
@@ -383,11 +383,19 @@ const SndkAssistant = (() => {
         errorHtml: `طلبك: ${verbLabel} «${esc(facilityQuery)}» — لم نتحدّث عن مرفقٍ بعد في هذه المحادثة لأربطه بالإشارة. اذكر اسمه صراحةً.`,
       };
     }
+    // مثل `searchDoctorsAndFacilities`: السلسلة كاملة قد تحمل بقايا لم تُعرف
+    // كضجيج ("لماذا... غير موجودة" مثلاً) فلا تطابق شيئاً رغم أن الاسم
+    // الحقيقي جزءٌ منها — تُسقَط الكلمة الأخيرة تكراراً حتى نتيجة أو كلمة.
+    const words = facilityQuery.split(' ').filter(Boolean);
     let matches = [];
-    try {
-      const rows = await withTimeout(SndkApi.getData('get-facilities', { query: { q: facilityQuery, limit: 5 } }));
-      matches = Array.isArray(rows) ? rows : [];
-    } catch (_) { /* استمرّ بلا نتائج */ }
+    for (let n = words.length; n >= 1; n--) {
+      const term = words.slice(0, n).join(' ');
+      try {
+        const rows = await withTimeout(SndkApi.getData('get-facilities', { query: { q: term, limit: 5 } }));
+        matches = Array.isArray(rows) ? rows : [];
+      } catch (_) { matches = []; }
+      if (matches.length || n === 1) break;
+    }
     if (matches.length === 0) {
       return {
         facility: null,
