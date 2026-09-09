@@ -73,6 +73,10 @@ function render(doctor, schedules, specialty) {
   // (طبيب ← بطاقة موعد ← صفحة المرفق ← زرّ الموقع) كما كان.
   const facility = doctorPrimaryFacility(doctor);
   const location = doctorLocationLabel(doctor);
+  // شارة "مفتوح الآن" — تحتاج جدولات الطبيب الفعلية، وهي مُحمَّلة أصلاً هنا
+  // (schedules وصلت من get-clinic-schedules في main() قبل الرسم).
+  const openNow = isOpenNow(schedules);
+  const lastUpdated = lastUpdatedLabel(doctor.updated_at);
 
   document.getElementById('root').innerHTML = `
     <div class="container" style="padding-top:16px;">
@@ -97,10 +101,21 @@ function render(doctor, schedules, specialty) {
                 ${facility && facility.googl_map ? '<button class="btn btn-sm btn-outline" id="doctorMapBtn">الموقع</button>' : ''}
               </div>
             ` : ''}
+            ${schedules.length ? `
+              <div class="row wrap gap-8 mt-8">
+                <span class="chip" style="background:${openNow ? `${SNDK_HEX.success}1F` : 'rgba(120,120,120,.15)'};color:${openNow ? (SNDK_HEX.success) : 'var(--text-muted)'};">
+                  ${openNow ? 'مفتوح الآن' : 'غير متاح الآن'}
+                </span>
+              </div>
+            ` : ''}
             ${doctor.rating > 0 ? `<div class="row gap-8 mt-8">${SNDK_ICONS.star(15)}<span class="text-muted">${esc(String(doctor.rating))} (${esc(String(doctor.reviews_count || 0))})</span></div>` : ''}
           </div>
         </div>
         ${doctor.bio ? `<p class="text-muted mt-12">${esc(doctor.bio)}</p>` : ''}
+        <div class="row spread mt-12" style="font-size:11.5px;">
+          <span class="text-muted">${lastUpdated ? `آخر تحديث: ${esc(lastUpdated)}` : ''}</span>
+          <a href="${reportIssueLink('طبيب', doctor.name, doctor.id)}" class="text-muted" style="text-decoration:underline;">أبلغ عن معلومة خاطئة</a>
+        </div>
       </div>
 
       <div class="section-title" style="margin:20px 0 8px;">مواعيد الطبيب</div>

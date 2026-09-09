@@ -42,6 +42,60 @@ function setMetaDescription(content) {
   tag.setAttribute('content', content);
 }
 
+/// "آخر تحديث" — غيابها كانت أهمّ فجوة ثقة كشفها التدقيق الشامل (مريض لا
+/// يعرف إن كانت المعلومة حديثة، حتى حين تكون صحيحة فعلاً). `updated_at`
+/// موجود أصلاً في القاعدة، لم يكن يُعرَض فقط. `null`/تاريخ غير صالح ⇒
+/// نصّ فارغ — لا نعرض "آخر تحديث: —" المُضلِّلة.
+function lastUpdatedLabel(dateStr) {
+  const d = dateStr ? new Date(dateStr) : null;
+  if (!d || Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+/// رابط "أبلغ عن معلومة خاطئة" — بريد مباشر لا نموذج/جدول جديد: أرخص حلّ
+/// حقيقي ممكن الآن (التدقيق نفسه صنّفه "أرخص إصلاح ممكن")، ولاحقاً إن
+/// كثرت البلاغات يستحق نظاماً مخصَّصاً — لا قبل أن يثبت الطلب فعلياً.
+function reportIssueLink(kind, name, id) {
+  const subject = encodeURIComponent(`بلاغ معلومة غير صحيحة — ${name}`);
+  const body = encodeURIComponent(`نوع السجلّ: ${kind}\nالاسم: ${name}\nالمعرّف: ${id}\nالرابط: ${window.location.href}\n\nوصف الخطأ:\n`);
+  return `mailto:privacy@snadk.codeysaa.com?subject=${subject}&body=${body}`;
+}
+
+/// "مفتوح الآن" — يوفّر على المريض مقارنة ذهنية بين تاريخ اليوم وجدول
+/// أيام/فترات نصّي. يتحقّق من **يوم اليوم ووقته الفعليين** ضد كل الجدولات
+/// المُمرَّرة (طبيب أو مرفق قد يعمل بأكثر من جدول/فترة)، لا أوّل جدولٍ فقط.
+const DAY_NAMES_AR_ORDER = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+function isOpenNow(schedules) {
+  const now = new Date();
+  // JS: الأحد=0...السبت=6. ترتيب التطبيق: السبت=0...الجمعة=6 — تحويل مباشر.
+  const todayIndex = (now.getDay() + 6) % 7;
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  return (schedules || []).some((s) => {
+    const days = Array.isArray(s.working_days) && s.working_days.length
+      ? s.working_days
+      : (Number.isInteger(s.day_of_week) ? [s.day_of_week === 7 ? 1 : s.day_of_week + 1] : []);
+    if (!days.includes(todayIndex)) return false;
+    if (!s.start_time || !s.end_time) return true; // يوم صحيح بلا وقت محدَّد — لا نفترض إغلاقاً.
+    const [sh, sm] = s.start_time.split(':').map(Number);
+    const [eh, em] = s.end_time.split(':').map(Number);
+    if ([sh, sm, eh, em].some(Number.isNaN)) return true;
+    const startMin = sh * 60 + sm;
+    const endMin = eh * 60 + em;
+    return nowMinutes >= startMin && nowMinutes <= endMin;
+  });
+}
+
+/// مسافة حقيقية بالكيلومتر (Haversine) — لفرز "الأقرب مني" بعد GPS.
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 /// خطأ إملائي شائع جداً في العربية (ة/ه) كان يُعيد صفر نتائج في بحث الأطباء
 /// والمرافق رغم وجود المطابقة فعلياً بالتهجئة الأخرى — رُصد حيّاً ("الصفوه"
 /// لم يطابق "الصفوة" المخزَّنة). `ilike` الخادم مطابقة نصّية حرفية لا لغوية،

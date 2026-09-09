@@ -113,6 +113,8 @@ function render(facility, schedules) {
   const whatsapps = facility.whatsapps && facility.whatsapps.length ? facility.whatsapps : (facility.whatsapp ? [facility.whatsapp] : []);
   const primaryPhone = phones[0];
   const primaryWhatsapp = whatsapps[0];
+  const openNow = isOpenNow(schedules);
+  const lastUpdated = lastUpdatedLabel(facility.updated_at);
 
   document.getElementById('root').innerHTML = `
     <div class="card card-pad" style="margin:16px;">
@@ -131,6 +133,7 @@ function render(facility, schedules) {
             ${facility.type ? chip(FACILITY_TYPE_LABELS[facility.type] || facility.type, SNDK_HEX.secondaryTeal) : ''}
             ${locationLabel(facility) ? chip(locationLabel(facility), SNDK_HEX.primary) : ''}
             ${doctors.length ? chip(`${doctors.length} طبيب`, SNDK_HEX.accentPurple) : ''}
+            ${schedules.length ? chip(openNow ? 'مفتوح الآن' : 'غير متاح الآن', openNow ? SNDK_HEX.success : SNDK_HEX.textMuted) : ''}
           </div>
           <div class="row wrap gap-8 mt-12" id="primaryActions">
             ${primaryWhatsapp ? `<button class="btn btn-sm btn-filled" id="waBtn">واتساب</button>` : ''}
@@ -139,6 +142,10 @@ function render(facility, schedules) {
             ${schedules.length ? `<button class="btn btn-sm btn-outline" id="jumpSchedulesBtn">المواعيد</button>` : ''}
           </div>
         </div>
+      </div>
+      <div class="row spread mt-12" style="font-size:11.5px;">
+        <span class="text-muted">${lastUpdated ? `آخر تحديث: ${esc(lastUpdated)}` : ''}</span>
+        <a href="${reportIssueLink('مرفق', facility.name, facility.id)}" class="text-muted" style="text-decoration:underline;">أبلغ عن معلومة خاطئة</a>
       </div>
     </div>
 

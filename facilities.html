@@ -24,6 +24,12 @@
   <div class="container" style="padding-top:16px;">
     <h1 class="title-lg" style="font-size:20px;margin-bottom:12px;">المستشفيات والعيادات</h1>
     <input class="field" id="facilitySearchInput" placeholder="ابحث بالاسم أو المدينة…">
+    <div class="row wrap gap-8 mt-8">
+      <select class="field" id="cityFilterSelect" style="flex:1;min-width:140px;">
+        <option value="">كل المدن</option>
+      </select>
+      <button class="btn btn-sm btn-outline" id="nearMeBtn">📍 الأقرب مني</button>
+    </div>
     <div id="facilitiesBody">
       <div class="skeleton" style="height:120px;"></div>
       <div class="skeleton" style="height:120px;"></div>
@@ -34,13 +40,13 @@
   <footer class="site-footer">© سندك الطبي</footer>
 
   <script src="js/routing.js?v=22"></script>
-  <script src="js/common.js?v=24"></script>
+  <script src="js/common.js?v=25"></script>
   <script src="js/config.js?v=22"></script>
   <script src="js/api.js?v=22"></script>
   <script src="js/auth.js?v=22"></script>
   <script src="js/auth-ui.js?v=22"></script>
   <script src="js/nav.js?v=22"></script>
   <script src="js/assistant-loader.js?v=33"></script>
-  <script src="js/facilities.js?v=24"></script>
+  <script src="js/facilities.js?v=25"></script>
 </body>
 </html>

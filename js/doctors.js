@@ -7,6 +7,11 @@
 let doctorsSearchTimer = null;
 let specialtiesById = {};
 let specialtiesList = [];
+let doctorCityFilter = '';
+// كل صفحة أطباء مُحمَّلة سابقاً — نُبقيها لتصفية المدينة محلياً بلا إعادة
+// طلب من الخادم (city ليست فلتر get-doctors، بل مُشتقّة من facility_doctors
+// المُضمَّن أصلاً في كل استجابة).
+let lastLoadedDoctors = [];
 
 // "دكتور أطفال" في صندوق بحث نصّه يقول "ابحث عن طبيب أو تخصص" كان يُرسَل
 // حرفياً كاسمٍ (get-doctors.q يطابق العمود name فقط) فيعود بلا نتائج مطلقاً
@@ -78,6 +83,27 @@ async function main() {
   document.getElementById('specialtyFilterSelect').addEventListener('change', (e) => {
     loadDoctors(document.getElementById('doctorSearchInput').value.trim(), e.target.value);
   });
+  document.getElementById('cityFilterSelect').addEventListener('change', (e) => {
+    doctorCityFilter = e.target.value;
+    renderDoctorsList(lastLoadedDoctors);
+  });
+}
+
+// خيارات المدينة تُبنى من دفعة الأطباء المُحمَّلة فعلياً (لا طلب إضافي)
+// عبر doctorPrimaryFacility المُشترَكة من common.js — نفس المصدر الذي
+// يُبنى منه شريط الموقع على كل بطاقة طبيب.
+function rebuildCityOptions(doctors) {
+  const select = document.getElementById('cityFilterSelect');
+  const current = select.value;
+  const cities = [...new Set(doctors.map((d) => {
+    const f = doctorPrimaryFacility(d);
+    return f && f.city;
+  }).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ar'));
+
+  select.innerHTML = '<option value="">كل المدن</option>' +
+    cities.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  if (cities.includes(current)) select.value = current;
+  else doctorCityFilter = '';
 }
 
 async function loadDoctors(q, specialtyId) {
@@ -118,12 +144,24 @@ async function loadDoctors(q, specialtyId) {
     return;
   }
 
-  if (!Array.isArray(doctors) || doctors.length === 0) {
+  if (!Array.isArray(doctors)) doctors = [];
+  lastLoadedDoctors = doctors;
+  rebuildCityOptions(doctors);
+  renderDoctorsList(doctors);
+}
+
+function renderDoctorsList(doctors) {
+  const body = document.getElementById('doctorsBody');
+  const filtered = doctorCityFilter
+    ? doctors.filter((d) => (doctorPrimaryFacility(d) || {}).city === doctorCityFilter)
+    : doctors;
+
+  if (filtered.length === 0) {
     body.innerHTML = '<div class="state-box">لا نتائج مطابقة.</div>';
     return;
   }
 
-  body.innerHTML = doctors.map((d) => doctorCardHtml(d, specialtiesById)).join('');
+  body.innerHTML = filtered.map((d) => doctorCardHtml(d, specialtiesById)).join('');
   wireImageFallbacks(body);
   wireDoctorCards(body);
 }
