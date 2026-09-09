@@ -19,6 +19,11 @@ const SndkAssistant = (() => {
   let panelEl = null;
   let sending = false;
 
+  // آخر مرفق تحدَّثت عنه المحادثة — يُحدَّث كلما استقرّ ردٌّ على مرفقٍ واحد
+  // بعينه (نتيجة بحث وحيدة، أو "مواعيد/أطباء مرفق X" ناجحة). "مواعيد هذا
+  // المرفق" في رسالة تالية تحلّه من هنا بدل البحث عن نصّ "هذا المرفق" حرفياً.
+  let lastFacility = null; // {id, name} | null
+
   function withTimeout(promise) {
     return Promise.race([
       promise,
@@ -84,6 +89,11 @@ const SndkAssistant = (() => {
       const nw = normalizeSimple(w);
       if (!nw) continue;
       out = out.split(` ${nw} `).join(' ');
+      // "المرفق" لا "مرفق" — القوائم كلها بصيغتها المجرَّدة، ورسالة حقيقية
+      // كانت تُبقي "هذا المرفق" كاملة في نتيجة الاستخراج لأن "مرفق" وحدها
+      // كانت تُزال بينما "المرفق" (بأداة التعريف) تبقى — تُطابَق هنا أيضاً
+      // بلا حاجة لتكرار كل كلمة بصيغتين في كل قائمة.
+      if (!nw.startsWith('ال')) out = out.split(` ال${nw} `).join(' ');
     }
     return out.replace(/\s+/g, ' ').trim();
   }
@@ -354,22 +364,51 @@ const SndkAssistant = (() => {
   // فلترة بمرفق إطلاقاً؛ الأداة الصحيحة الوحيدة هي جدولات المرفق نفسه
   // (get-clinic-schedules) — نفس الأسلوب المُصحَّح في دالة الحافة
   // ai-assistant لنفس السبب بالضبط.
-  async function handleFacilityDoctorsIntent(facilityQuery) {
+  // كلمات إشارة صرفة ("هذا"، "هذه"...) لا اسم مرفق — تُستهلَك من `lastFacility`
+  // (آخر مرفق استقرّ عليه ردٌّ سابق) بدل بحثٍ نصّي لن يطابق شيئاً أبداً.
+  const REFERENCE_WORDS = ['هذا', 'هذه', 'ذلك', 'تلك', 'نفسه', 'نفسها'];
+  function isPureReference(text) {
+    const t = (text || '').trim();
+    return t !== '' && stripSimpleWords(t, REFERENCE_WORDS) === '';
+  }
+
+  // يحلّ facilityQuery إلى مرفق واحد — من السياق (`lastFacility`) حين تكون
+  // الرسالة إشارة صرفة، وإلا ببحث get-facilities المعتاد. `null` = تعذّر
+  // الحلّ، والرسالة المناسبة (لا سياق / لا مطابقة) مبنيّة هنا أيضاً.
+  async function resolveFacilityQuery(facilityQuery, verbLabel) {
+    if (isPureReference(facilityQuery)) {
+      if (lastFacility) return { facility: lastFacility, matchesCount: 1, fromContext: true };
+      return {
+        facility: null,
+        errorHtml: `طلبك: ${verbLabel} «${esc(facilityQuery)}» — لم نتحدّث عن مرفقٍ بعد في هذه المحادثة لأربطه بالإشارة. اذكر اسمه صراحةً.`,
+      };
+    }
     let matches = [];
     try {
       const rows = await withTimeout(SndkApi.getData('get-facilities', { query: { q: facilityQuery, limit: 5 } }));
       matches = Array.isArray(rows) ? rows : [];
     } catch (_) { /* استمرّ بلا نتائج */ }
-
     if (matches.length === 0) {
-      return `طلبك: أطباء مرفق «${esc(facilityQuery)}» — لا مرفق مطابق في البحث المبسّط. تصفّح كل المرافق من ${linkBtn(`${sndkBasePath()}/facilities`, 'هنا')}.`;
+      return {
+        facility: null,
+        errorHtml: `طلبك: ${verbLabel} «${esc(facilityQuery)}» — لا مرفق مطابق في البحث المبسّط. تصفّح كل المرافق من ${linkBtn(`${sndkBasePath()}/facilities`, 'هنا')}.`,
+      };
     }
-    const facility = matches[0];
+    return { facility: matches[0], matchesCount: matches.length, fromContext: false };
+  }
+
+  async function handleFacilityDoctorsIntent(facilityQuery) {
+    const resolved = await resolveFacilityQuery(facilityQuery, 'أطباء مرفق');
+    if (!resolved.facility) return resolved.errorHtml;
+    const facility = resolved.facility;
+    lastFacility = { id: facility.id, name: facility.name };
+
     const schedules = await loadFacilitySchedules(facility.id);
     const doctors = distinctDoctorsFromSchedules(schedules);
-    const ambiguityNote = matches.length > 1 ? ` (من بين ${matches.length} مرافق مطابقة، الأقرب: ${esc(facility.name)})` : '';
+    const ambiguityNote = resolved.matchesCount > 1 ? ` (من بين ${resolved.matchesCount} مرافق مطابقة، الأقرب: ${esc(facility.name)})` : '';
+    const askedAs = resolved.fromContext ? esc(facility.name) : `«${esc(facilityQuery)}»`;
 
-    const intro = `طلبك: أطباء مرفق «${esc(facilityQuery)}»${ambiguityNote} — ${esc(facility.name)} لديه ${arabicCount(doctors.length, 'طبيب', 'أطباء')}، و${arabicCount(schedules.length, 'موعد', 'مواعيد')} معلَنة.`;
+    const intro = `طلبك: أطباء مرفق ${askedAs}${ambiguityNote} — ${esc(facility.name)} لديه ${arabicCount(doctors.length, 'طبيب', 'أطباء')}، و${arabicCount(schedules.length, 'موعد', 'مواعيد')} معلَنة.`;
     if (doctors.length === 0) {
       return `${intro} لا أطباء مسجَّلون لهذا المرفق حالياً.` + actionsRow(linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(facility.id)}`, 'فتح صفحة المرفق'));
     }
@@ -400,23 +439,19 @@ const SndkAssistant = (() => {
   }
 
   async function handleFacilitySchedulesIntent(facilityQuery) {
-    let matches = [];
-    try {
-      const rows = await withTimeout(SndkApi.getData('get-facilities', { query: { q: facilityQuery, limit: 5 } }));
-      matches = Array.isArray(rows) ? rows : [];
-    } catch (_) { /* استمرّ بلا نتائج */ }
+    const resolved = await resolveFacilityQuery(facilityQuery, 'مواعيد مرفق');
+    if (!resolved.facility) return resolved.errorHtml;
+    const facility = resolved.facility;
+    lastFacility = { id: facility.id, name: facility.name };
 
-    if (matches.length === 0) {
-      return `طلبك: مواعيد مرفق «${esc(facilityQuery)}» — لا مرفق مطابق في البحث المبسّط. تصفّح كل المرافق من ${linkBtn(`${sndkBasePath()}/facilities`, 'هنا')}.`;
-    }
-    const facility = matches[0];
     const [schedules, bookingIdsArr] = await Promise.all([
       loadFacilitySchedules(facility.id),
       fetchBookingFacilityIds().catch(() => null),
     ]);
     const facilityBookable = Array.isArray(bookingIdsArr) && new Set(bookingIdsArr).has(facility.id);
-    const ambiguityNote = matches.length > 1 ? ` (من بين ${matches.length} مرافق مطابقة، الأقرب: ${esc(facility.name)})` : '';
-    const intro = `طلبك: مواعيد مرفق «${esc(facilityQuery)}»${ambiguityNote} — ${esc(facility.name)}: كل الجدولات المعلَنة (بحجز إلكتروني وبدونه).`;
+    const ambiguityNote = resolved.matchesCount > 1 ? ` (من بين ${resolved.matchesCount} مرافق مطابقة، الأقرب: ${esc(facility.name)})` : '';
+    const askedAs = resolved.fromContext ? esc(facility.name) : `«${esc(facilityQuery)}»`;
+    const intro = `طلبك: مواعيد مرفق ${askedAs}${ambiguityNote} — ${esc(facility.name)}: كل الجدولات المعلَنة (بحجز إلكتروني وبدونه).`;
 
     if (schedules.length === 0) {
       return `${intro} لا مواعيد معلَنة لهذا المرفق حالياً.`
@@ -631,6 +666,7 @@ const SndkAssistant = (() => {
         + actionsRow(linkBtn(`${sndkBasePath()}/doctor/${encodeURIComponent(doctors[0].id)}`, 'فتح صفحة الطبيب'));
     }
     if (facilities.length === 1 && doctors.length === 0) {
+      lastFacility = { id: facilities[0].id, name: facilities[0].name };
       return `طلبك: بحث عن «${esc(raw)}» — نتيجة واحدة مطابقة: ${await describeFacilityParagraph(facilities[0], bookingIds)}`
         + actionsRow(linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(facilities[0].id)}`, 'فتح صفحة المرفق'));
     }
