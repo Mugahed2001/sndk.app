@@ -84,6 +84,33 @@ function extractCityQuery(n, matchedSpecialty) {
   }
   return stripSimpleWords(n, words);
 }
+function levenshtein(a, b) {
+  const dp = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+  return dp[a.length][b.length];
+}
+function fuzzyBestMatch(term, list, nameOf) {
+  const nTerm = normalizeSimple(term);
+  if (nTerm.length < 3) return null;
+  const threshold = nTerm.length <= 4 ? 1 : 2;
+  let best = null;
+  let bestDist = Infinity;
+  for (const item of list) {
+    const name = normalizeSimple(nameOf(item) || '');
+    if (!name) continue;
+    const candidates = [name, ...name.split(' ')];
+    const dist = Math.min(...candidates.map((c) => levenshtein(nTerm, c)));
+    if (dist <= threshold && dist < bestDist) { bestDist = dist; best = item; }
+  }
+  return best;
+}
+
 function isPureReference(text) {
   const t = (text || '').trim();
   return t !== '' && stripSimpleWords(t, REFERENCE_WORDS) === '';
@@ -232,6 +259,17 @@ check('"كيف احجز؟" ⇒ faq لا booking_generic', classify(normalizeSimp
 check('"هل الحجز مجاني" ⇒ faq', classify(normalizeSimple('هل الحجز مجاني'), SPECIALTIES).type, 'faq');
 check('"ما هي سندك الطبي" ⇒ faq', classify(normalizeSimple('ما هي سندك الطبي'), SPECIALTIES).type, 'faq');
 check('سؤال عن مرفقٍ بعينه لا يُخطَف كـfaq رغم "متى"', classify(normalizeSimple('متى مواعيد عيادة السري'), SPECIALTIES).type !== 'faq', true);
+
+// ─────────────────────────── Sprint 3 ───────────────────────────
+
+// PBI-5: تسامح إملائي — خطأ حرف واحد في اسم قصير يبقى ضمن العتبة
+check('مسافة تحرير حرف واحد', levenshtein('الاصله', 'الاصيله'), 1);
+{
+  const list = [{ name: 'عيادة الاصيلة' }, { name: 'عيادة السري لطب وجراحة الفم والاسنان' }];
+  const m = fuzzyBestMatch('الاصله', list, (x) => x.name); // "الاصيله" بخطأ حرف
+  check('fuzzyBestMatch يجد أقرب اسم رغم الخطأ الإملائي', m && m.name, 'عيادة الاصيلة');
+}
+check('fuzzyBestMatch لا يطابق شيئاً بعيداً كلياً', fuzzyBestMatch('شيء عشوائي تماماً', [{ name: 'عيادة الاصيلة' }], (x) => x.name), null);
 
 if (failures > 0) {
   console.error(`\n${failures} اختباراً فشل.`);

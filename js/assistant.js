@@ -196,6 +196,46 @@ const SndkAssistant = (() => {
     return [];
   }
 
+  // مسافة تحرير بسيطة (Levenshtein) — ملاذٌ أخير حين يفشل حتى التقصير
+  // التدريجي: خطأ إملائي حرفٍ أو حرفين داخل الكلمة نفسها ("الاصيله" بدل
+  // "الاصيلة" لا فرق هنا فعلاً بعد التطبيع، لكن "الاصيله" بدل "الاصلية"
+  // خطأ ترتيب حروف حقيقي) لا يُصلحه إسقاط كلمات كاملة.
+  function levenshtein(a, b) {
+    const dp = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+    for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+    for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+    for (let i = 1; i <= a.length; i++) {
+      for (let j = 1; j <= b.length; j++) {
+        dp[i][j] = a[i - 1] === b[j - 1]
+          ? dp[i - 1][j - 1]
+          : 1 + Math.min(dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+    return dp[a.length][b.length];
+  }
+
+  // يقارن `term` بكل اسمٍ في `list` (وبكل كلمةٍ منه على حدة — طلبٌ بكلمة
+  // واحدة كاسم عائلة لن يقترب من اسمٍ كاملٍ طويل) ويُعيد الأقرب ضمن عتبة
+  // معقولة (تتّسع مع طول الكلمة: كلمة قصيرة تحتمل خطأ حرفٍ واحد فقط).
+  function fuzzyBestMatch(term, list, nameOf) {
+    const nTerm = normalizeSimple(term);
+    if (nTerm.length < 3) return null;
+    const threshold = nTerm.length <= 4 ? 1 : 2;
+    let best = null;
+    let bestDist = Infinity;
+    for (const item of list) {
+      const name = normalizeSimple(nameOf(item) || '');
+      if (!name) continue;
+      const candidates = [name, ...name.split(' ')];
+      const dist = Math.min(...candidates.map((c) => levenshtein(nTerm, c)));
+      if (dist <= threshold && dist < bestDist) {
+        bestDist = dist;
+        best = item;
+      }
+    }
+    return best;
+  }
+
   function arabicCount(n, singular, plural) {
     if (n === 0) return `لا ${plural}`;
     if (n === 1) return `${singular} واحد`;
@@ -483,12 +523,34 @@ const SndkAssistant = (() => {
       if (matches.length || n === 1) break;
     }
     if (matches.length === 0) {
+      // ملاذ أخير: خطأ إملائي داخل الاسم نفسه، لا كلمات زائدة حوله — لا
+      // يُصلحه إسقاط كلمات. مقارنة بأسماء كل المرافق (٢٠٠ كحدّ أقصى، طلبٌ
+      // واحد محدود) بمسافة تحرير صغيرة.
+      try {
+        const all = await withTimeout(SndkApi.getData('get-facilities', { query: { limit: 200 } }));
+        const fuzzy = fuzzyBestMatch(facilityQuery, Array.isArray(all) ? all : [], (f) => f.name);
+        if (fuzzy) return { facility: fuzzy, matchesCount: 1, fromContext: false, fuzzy: true };
+      } catch (_) { /* استمرّ لرسالة اللانتيجة */ }
       return {
         facility: null,
         errorHtml: `طلبك: ${verbLabel} «${esc(facilityQuery)}» — لا مرفق مطابق في البحث المبسّط. تصفّح كل المرافق من ${linkBtn(`${sndkBasePath()}/facilities`, 'هنا')}.`,
       };
     }
-    return { facility: matches[0], matchesCount: matches.length, fromContext: false };
+    // أكثر من مرفق مطابق — اختيار الأول صامتاً كان يخاطر بمرفقٍ آخر غير
+    // المقصود (اسمان متشابهان في مدينتين مختلفتين). تُعرض القائمة كاملة
+    // (الاسم يُفتح مباشرة، والموقع يُفرّق بينها) بدل التخمين.
+    if (matches.length > 1) {
+      const rows = matches.map((m) => [
+        linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(m.id)}`, m.name),
+        esc([m.city, m.district, m.directorate, m.nearby_landmark].filter(Boolean).join('، ') || '—'),
+      ]);
+      return {
+        facility: null,
+        errorHtml: `طلبك: ${verbLabel} «${esc(facilityQuery)}» — وجدت ${matches.length} مرافق مطابقة، حدِّد المقصود (اضغط الاسم لفتح صفحته، أو أعد صياغة الطلب بمدينة أدقّ):`
+          + tableHtml(['المرفق', 'الموقع'], rows),
+      };
+    }
+    return { facility: matches[0], matchesCount: 1, fromContext: false };
   }
 
   async function handleFacilityDoctorsIntent(facilityQuery) {
@@ -499,10 +561,8 @@ const SndkAssistant = (() => {
 
     const schedules = await loadFacilitySchedules(facility.id);
     const doctors = distinctDoctorsFromSchedules(schedules);
-    const ambiguityNote = resolved.matchesCount > 1 ? ` (من بين ${resolved.matchesCount} مرافق مطابقة، الأقرب: ${esc(facility.name)})` : '';
     const askedAs = resolved.fromContext ? esc(facility.name) : `«${esc(facilityQuery)}»`;
-
-    const intro = `طلبك: أطباء مرفق ${askedAs}${ambiguityNote} — ${esc(facility.name)} لديه ${arabicCount(doctors.length, 'طبيب', 'أطباء')}، و${arabicCount(schedules.length, 'موعد', 'مواعيد')} معلَنة.`;
+    const intro = `طلبك: أطباء مرفق ${askedAs} — ${esc(facility.name)} لديه ${arabicCount(doctors.length, 'طبيب', 'أطباء')}، و${arabicCount(schedules.length, 'موعد', 'مواعيد')} معلَنة.`;
     if (doctors.length === 0) {
       return `${intro} لا أطباء مسجَّلون لهذا المرفق حالياً.` + actionsRow(linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(facility.id)}`, 'فتح صفحة المرفق'));
     }
@@ -543,9 +603,8 @@ const SndkAssistant = (() => {
       fetchBookingFacilityIds().catch(() => null),
     ]);
     const facilityBookable = Array.isArray(bookingIdsArr) && new Set(bookingIdsArr).has(facility.id);
-    const ambiguityNote = resolved.matchesCount > 1 ? ` (من بين ${resolved.matchesCount} مرافق مطابقة، الأقرب: ${esc(facility.name)})` : '';
     const askedAs = resolved.fromContext ? esc(facility.name) : `«${esc(facilityQuery)}»`;
-    const intro = `طلبك: مواعيد مرفق ${askedAs}${ambiguityNote} — ${esc(facility.name)}: كل الجدولات المعلَنة (بحجز إلكتروني وبدونه).`;
+    const intro = `طلبك: مواعيد مرفق ${askedAs} — ${esc(facility.name)}: كل الجدولات المعلَنة (بحجز إلكتروني وبدونه).`;
 
     if (schedules.length === 0) {
       return `${intro} لا مواعيد معلَنة لهذا المرفق حالياً.`
@@ -598,12 +657,28 @@ const SndkAssistant = (() => {
       if (matches.length || n === 1) break;
     }
     if (matches.length === 0) {
+      try {
+        const all = await withTimeout(SndkApi.getData('get-doctors', { query: { limit: 200 } }));
+        const fuzzy = fuzzyBestMatch(doctorQuery, Array.isArray(all) ? all : [], (d) => d.name);
+        if (fuzzy) return { doctor: fuzzy, matchesCount: 1, fromContext: false, fuzzy: true };
+      } catch (_) { /* استمرّ لرسالة اللانتيجة */ }
       return {
         doctor: null,
         errorHtml: `طلبك: مواعيد الطبيب «${esc(doctorQuery)}» — لا طبيب مطابق في البحث المبسّط. تصفّح كل الأطباء من ${linkBtn(`${sndkBasePath()}/doctors`, 'هنا')}.`,
       };
     }
-    return { doctor: matches[0], matchesCount: matches.length, fromContext: false };
+    if (matches.length > 1) {
+      const rows = matches.map((m) => [
+        linkBtn(`${sndkBasePath()}/doctor/${encodeURIComponent(m.id)}`, m.name),
+        m.rating > 0 ? esc(String(m.rating)) : '—',
+      ]);
+      return {
+        doctor: null,
+        errorHtml: `طلبك: مواعيد الطبيب «${esc(doctorQuery)}» — وجدت ${matches.length} أطباء مطابقين، حدِّد المقصود (اضغط الاسم لفتح صفحته، أو أضف اسم مرفقه):`
+          + tableHtml(['الطبيب', 'التقييم'], rows),
+      };
+    }
+    return { doctor: matches[0], matchesCount: 1, fromContext: false };
   }
 
   // "مواعيد د. عبدالرحمن السري" — بلا ذكر مرفق: مواعيد الطبيب أينما عمل،
@@ -628,9 +703,8 @@ const SndkAssistant = (() => {
     } catch (_) { /* استمرّ بلا نتائج */ }
 
     const bookingIds = Array.isArray(bookingIdsArr) ? new Set(bookingIdsArr) : null;
-    const ambiguityNote = resolved.matchesCount > 1 ? ` (من بين ${resolved.matchesCount} أطباء مطابقين، الأقرب: ${esc(doctor.name)})` : '';
     const askedAs = resolved.fromContext ? esc(doctor.name) : `«${esc(doctorQuery)}»`;
-    const intro = `طلبك: مواعيد الطبيب ${askedAs}${ambiguityNote} — ${esc(doctor.name)}: كل الجدولات المعلَنة.`;
+    const intro = `طلبك: مواعيد الطبيب ${askedAs} — ${esc(doctor.name)}: كل الجدولات المعلَنة.`;
 
     if (schedules.length === 0) {
       return `${intro} لا مواعيد معلَنة لهذا الطبيب حالياً.`
@@ -805,6 +879,19 @@ const SndkAssistant = (() => {
         if (doctors.length || facilities.length || n === 1) return { doctors, facilities, usedTerm: term };
       } catch (_) { /* جرّب سلسلة أقصر */ }
     }
+    // ملاذ أخير: خطأ إملائي داخل الاسم — نفس أسلوب resolveFacilityQuery/
+    // resolveDoctorQuery، لكن يبحث في القائمتين معاً (لا نعرف مسبقاً طبيباً
+    // يُقصَد أم مرفقاً).
+    try {
+      const [allDoctors, allFacilities] = await withTimeout(Promise.all([
+        SndkApi.getData('get-doctors', { query: { limit: 200 } }).catch(() => []),
+        SndkApi.getData('get-facilities', { query: { limit: 200 } }).catch(() => []),
+      ]));
+      const fuzzyDoctor = fuzzyBestMatch(cleanedTerm, Array.isArray(allDoctors) ? allDoctors : [], (d) => d.name);
+      if (fuzzyDoctor) return { doctors: [fuzzyDoctor], facilities: [], usedTerm: cleanedTerm };
+      const fuzzyFacility = fuzzyBestMatch(cleanedTerm, Array.isArray(allFacilities) ? allFacilities : [], (f) => f.name);
+      if (fuzzyFacility) return { doctors: [], facilities: [fuzzyFacility], usedTerm: cleanedTerm };
+    } catch (_) { /* استمرّ بلا نتائج */ }
     return { doctors: [], facilities: [], usedTerm: cleanedTerm };
   }
 
