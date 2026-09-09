@@ -37,7 +37,17 @@ async function main() {
     typeFilter = e.target.value;
     loadFacilities(document.getElementById('facilitySearchInput').value.trim());
   });
+  document.getElementById('nearMeBtn').innerHTML = nearMeLabel('idle');
   document.getElementById('nearMeBtn').addEventListener('click', requestNearMe);
+}
+
+// أيقونة الدبّوس بلون الهويّة (`currentColor` يرث لون نص الزرّ، وهو
+// `var(--primary)` على `.btn-outline`) بدل رمز 📍 التعبيري — ذاك يُعرَض
+// بلونه الثابت الخاص بكل نظام تشغيل (أحمر غالباً)، لا بهويّة سندك.
+function nearMeLabel(state) {
+  if (state === 'loading') return '<div class="spinner spinner-dark" style="width:14px;height:14px;"></div> جارٍ التحديد…';
+  if (state === 'done') return `${SNDK_ICONS.pin(15, 'currentColor')} مرتَّب بالأقرب`;
+  return `${SNDK_ICONS.pin(15, 'currentColor')} الأقرب مني`;
 }
 
 // FACILITY_TYPE_LABELS يحمل مفتاحين لنفس "مركز طبي" (medicalCenter/
@@ -91,16 +101,16 @@ function requestNearMe() {
     return;
   }
   btn.disabled = true;
-  btn.textContent = '...جارٍ التحديد';
+  btn.innerHTML = nearMeLabel('loading');
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      btn.textContent = '📍 مرتَّب بالأقرب';
+      btn.innerHTML = nearMeLabel('done');
       loadFacilities(document.getElementById('facilitySearchInput').value.trim());
     },
     () => {
       btn.disabled = false;
-      btn.textContent = '📍 الأقرب مني';
+      btn.innerHTML = nearMeLabel('idle');
       alert('تعذّر الوصول لموقعك — تحقّق من إذن الموقع في المتصفح.');
     },
     { timeout: 10000 },
