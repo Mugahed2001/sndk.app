@@ -226,6 +226,8 @@ const SNDK_FALLBACK_ICONS = {
 const SNDK_ICONS = {
   calendar: (size = 16, color = 'var(--primary)') =>
     `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="17" rx="2" stroke="${color}" stroke-width="1.8"/><path d="M3 9h18M8 2v4M16 2v4" stroke="${color}" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+  megaphone: (size = 16, color = 'var(--primary)') =>
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M4 10v4a1 1 0 001 1h3l6 4V5L8 9H5a1 1 0 00-1 1z" stroke="${color}" stroke-width="1.7" stroke-linejoin="round"/><path d="M18 8.5a4 4 0 010 7" stroke="${color}" stroke-width="1.7" stroke-linecap="round"/></svg>`,
   clock: (size = 16, color = 'var(--primary)') =>
     `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="${color}" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   pin: (size = 16, color = 'var(--primary)') =>
@@ -271,6 +273,49 @@ const SNDK_ICONS = {
     `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M15 14l5-5-5-5" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 20v-7a4 4 0 014-4h12" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   infinity: (size = 16, color = 'var(--primary)') =>
     `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M7 9a3.5 3.5 0 000 7c2 0 3.2-1.6 5-4.5S15 5 17 5a3.5 3.5 0 010 7c-2 0-3.2-1.6-5-4.5S9.5 9 7 9z" stroke="${color}" stroke-width="1.7" stroke-linejoin="round"/></svg>`,
+};
+
+/// وقت نسبي بأسلوب فيسبوك: «الآن» / «قبل ٣ ساعات» / «أمس» / «قبل يومين» …
+/// عربي بالمثنّى والجمع، لا أرقام إنجليزية جافّة. يُستعمل في رأس بطاقات
+/// خلاصة الرئيسية (الإعلانات/الفعاليات).
+function relativeTimeAr(iso) {
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return '';
+  const sec = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  const pick = (n, one, two, few, many) =>
+    n === 1 ? one : n === 2 ? two : n <= 10 ? `قبل ${n} ${few}` : `قبل ${n} ${many}`;
+  if (sec < 60) return 'الآن';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return pick(min, 'قبل دقيقة', 'قبل دقيقتين', 'دقائق', 'دقيقة');
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return pick(hr, 'قبل ساعة', 'قبل ساعتين', 'ساعات', 'ساعة');
+  const day = Math.floor(hr / 24);
+  if (day < 7) return pick(day, 'أمس', 'قبل يومين', 'أيام', 'يوماً');
+  const wk = Math.floor(day / 7);
+  if (wk < 5) return pick(wk, 'قبل أسبوع', 'قبل أسبوعين', 'أسابيع', 'أسبوعاً');
+  const mo = Math.floor(day / 30);
+  if (mo < 12) return pick(mo, 'قبل شهر', 'قبل شهرين', 'أشهر', 'شهراً');
+  const yr = Math.floor(day / 365);
+  return pick(yr, 'قبل سنة', 'قبل سنتين', 'سنوات', 'سنة');
+}
+
+/// تصنيفات الإعلان المحلي — نظير check(category) في migration
+/// 20260916000000. تظهر كشارة بنفس شارات نوع المرفق/المدينة.
+const AD_CATEGORY_LABELS = {
+  discount: 'خصم',
+  offer: 'عرض',
+  medical_job: 'توظيف طبي',
+  blood_donation: 'تبرّع بالدم',
+  general: 'إعلان عام',
+};
+
+/// أنواع الفعاليات — مظلّة medical_camps.kind. camp يبقى «مخيم طبي».
+const EVENT_KIND_LABELS = {
+  camp: 'مخيم طبي',
+  awareness: 'محاضرة توعوية',
+  vaccination: 'حملة تطعيم',
+  workshop: 'ورشة',
+  event: 'فعالية',
 };
 
 /// يُنادى بعد كل `innerHTML` يحمل صوراً بخاصّية `data-fallback-type`. عنصرٌ
