@@ -71,7 +71,7 @@ const SndkAssistant = (() => {
   const FALLBACK_FACILITY_WORDS = ['مستشفى', 'مستشفيات', 'عيادة', 'عيادات', 'مركز طبي', 'مراكز', 'مرفق', 'مرافق', 'مستوصف'];
   const FALLBACK_REPORT_WORDS = ['تقرير', 'احصائية', 'احصائيات', 'إحصائية', 'إحصائيات', 'ملخص', 'كم عدد', 'كم مرفق', 'كم مستشفى', 'كم طبيب', 'كم مدينة'];
   const FALLBACK_GREETING_WORDS = ['مرحبا', 'اهلا', 'السلام عليكم', 'هاي', 'صباح الخير', 'مساء الخير'];
-  const FALLBACK_NOISE_WORDS = ['اريد', 'ابحث عن', 'ابغى', 'ابي', 'من فضلك', 'ابحث', 'عن', 'في', 'لي', 'هل يوجد', 'يوجد', 'ما هو', 'ما هي', 'يمكن', 'يمكنني', 'الذي', 'التي', 'بها', 'به'];
+  const FALLBACK_NOISE_WORDS = ['اريد', 'ابحث عن', 'ابغى', 'ابي', 'من فضلك', 'ابحث', 'عن', 'في', 'لي', 'هل يوجد', 'هل', 'يوجد', 'ما هو', 'ما هي', 'يمكن', 'يمكنني', 'الذي', 'التي', 'بها', 'به'];
 
   // إزالة كلمة/عبارة ككلمة كاملة محاطة بفراغ فقط — لا كأي مطابقة جزئية داخل
   // كلمة أطول. بلا هذا الحرص: normalize("مستشفى") == "مستشفي"، وحرف "في"
@@ -86,6 +86,15 @@ const SndkAssistant = (() => {
       out = out.split(` ${nw} `).join(' ');
     }
     return out.replace(/\s+/g, ' ').trim();
+  }
+
+  // نفس فكرة `stripSimpleWords` لكن بالنص الأصلي لا المطبَّع — تُبنى منه
+  // سلسلة `q` تُرسَل للخادم فعلياً، والتطبيع (ة→ه، أ→ا...) يجعلها لا تطابق
+  // أعمدة القاعدة الحقيقية حرفياً (`ilike` مطابقة نصّية لا لغوية). المقارنة
+  // بالمطبَّع لتحديد أي كلمة ضجيج، والإخراج بإملاء المستخدم كما كتبه.
+  function stripNoiseWordsKeepOriginal(text, words) {
+    const noise = new Set(words.map((w) => normalizeSimple(w)).filter(Boolean));
+    return text.split(/\s+/).filter((tok) => tok && !noise.has(normalizeSimple(tok))).join(' ');
   }
 
   // ─────────────── جدول المواعيد العابر للمرافق — تخصص + مدينة + فترة + يوم ───────────────
@@ -233,7 +242,7 @@ const SndkAssistant = (() => {
     const type = f.type ? (FACILITY_TYPE_LABELS[f.type] || f.type) : '';
     // المدينة والمحافظة أولاً، ثم المنطقة، ثم المعلم القريب — من الأعمّ إلى
     // الأدقّ، كما يُذكر مكان فعلياً لا يُوصف بالإحداثيات.
-    const location = [f.city, f.governorate, f.district].filter(Boolean).join('، ');
+    const location = [f.city, f.governorate, f.directorate, f.district].filter(Boolean).join('، ');
     const phones = f.phones && f.phones.length ? f.phones : (f.phone ? [f.phone] : []);
     const whatsapps = f.whatsapps && f.whatsapps.length ? f.whatsapps : (f.whatsapp ? [f.whatsapp] : []);
     const contactParts = [];
@@ -458,7 +467,7 @@ const SndkAssistant = (() => {
   // معاً — أوسع من city وحدها، لا فلتراً إضافياً منفصلاً.
   function facilityLocationText(f) {
     if (!f) return '';
-    return normalizeSimple([f.city, f.district, f.nearby_landmark].filter(Boolean).join(' '));
+    return normalizeSimple([f.city, f.district, f.directorate, f.nearby_landmark].filter(Boolean).join(' '));
   }
 
   function filterSchedules(schedules, cityQuery, period, dayIndex) {
@@ -491,7 +500,7 @@ const SndkAssistant = (() => {
       // المدينة وحدها لا تقول لماذا طابق الصفّ طلباً بمنطقة أو معلم قريب —
       // المنطقة/المعلم يظهران بجانبها حين يتوفّران، لا استبدالاً لها.
       const f = s.facilities;
-      const locationParts = [f && f.city, f && f.district, f && f.nearby_landmark].filter(Boolean);
+      const locationParts = [f && f.city, f && f.district, f && f.directorate, f && f.nearby_landmark].filter(Boolean);
       const locationLabel = locationParts.length ? locationParts.join(' — ') : '—';
       return [
         linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(s.facility_id)}`, (s.facilities && s.facilities.name) || '—'),
@@ -560,20 +569,52 @@ const SndkAssistant = (() => {
     return `طلبك: جدول ${askedLabel} — لا مواعيد معلَنة حالياً. تصفّح ${linkBtn(`${sndkBasePath()}/doctors`, 'كل الأطباء')} أو ${linkBtn(`${sndkBasePath()}/facilities`, 'المرافق')}.`;
   }
 
+  // "هل عيادة السري في عيديد" كاملةً كسلسلة `q` لا تطابق شيئاً حتى لو
+  // وُجدت عيادة اسمها "السري" فعلاً — الخادم يقارن السلسلة كاملة بعمود
+  // واحد (name أو city...)، لا كلمة كلمة. تُنظَّف كلمات الضجيج ("هل"، "في")
+  // أولاً، ثم إن فشلت السلسلة كاملة تُسقَط الكلمة الأخيرة تكراراً (غالباً هي
+  // القيد الإضافي — منطقة أو وصف — لا جزء الاسم) حتى نتيجة أو كلمة واحدة.
+  async function searchDoctorsAndFacilities(cleanedTerm) {
+    const words = cleanedTerm.split(' ').filter(Boolean);
+    for (let n = words.length; n >= 1; n--) {
+      const term = words.slice(0, n).join(' ');
+      try {
+        const results = await withTimeout(Promise.all([
+          SndkApi.getData('get-doctors', { query: { q: term, limit: 6 } }).catch(() => []),
+          SndkApi.getData('get-facilities', { query: { q: term, limit: 6 } }).catch(() => []),
+        ]));
+        const doctors = Array.isArray(results[0]) ? results[0] : [];
+        const facilities = Array.isArray(results[1]) ? results[1] : [];
+        if (doctors.length || facilities.length || n === 1) return { doctors, facilities, usedTerm: term };
+      } catch (_) { /* جرّب سلسلة أقصر */ }
+    }
+    return { doctors: [], facilities: [], usedTerm: cleanedTerm };
+  }
+
   async function handleSearchIntent(raw, matchedSpecialty, specialties) {
     let doctors = [];
     let facilities = [];
     let bookingIds = null;
+    const cleaned = stripNoiseWordsKeepOriginal(raw, FALLBACK_NOISE_WORDS) || raw;
     try {
-      const doctorQuery = matchedSpecialty ? { specialty_id: matchedSpecialty.id, limit: 8 } : { q: raw, limit: 6 };
-      const results = await withTimeout(Promise.all([
-        SndkApi.getData('get-doctors', { query: doctorQuery }).catch(() => []),
-        SndkApi.getData('get-facilities', { query: { q: raw, limit: 6 } }).catch(() => []),
-        fetchBookingFacilityIds().catch(() => null),
-      ]));
-      doctors = Array.isArray(results[0]) ? results[0] : [];
-      facilities = Array.isArray(results[1]) ? results[1] : [];
-      bookingIds = Array.isArray(results[2]) ? new Set(results[2]) : null;
+      if (matchedSpecialty) {
+        const results = await withTimeout(Promise.all([
+          SndkApi.getData('get-doctors', { query: { specialty_id: matchedSpecialty.id, limit: 8 } }).catch(() => []),
+          SndkApi.getData('get-facilities', { query: { q: raw, limit: 6 } }).catch(() => []),
+          fetchBookingFacilityIds().catch(() => null),
+        ]));
+        doctors = Array.isArray(results[0]) ? results[0] : [];
+        facilities = Array.isArray(results[1]) ? results[1] : [];
+        bookingIds = Array.isArray(results[2]) ? new Set(results[2]) : null;
+      } else {
+        const [searchResult, bookingIdsArr] = await withTimeout(Promise.all([
+          searchDoctorsAndFacilities(cleaned),
+          fetchBookingFacilityIds().catch(() => null),
+        ]));
+        doctors = searchResult.doctors;
+        facilities = searchResult.facilities;
+        bookingIds = Array.isArray(bookingIdsArr) ? new Set(bookingIdsArr) : null;
+      }
     } catch (_) { /* استمرّ بلا نتائج بدل رسالة خطأ ثانية */ }
 
     if (doctors.length === 0 && facilities.length === 0) {
@@ -624,7 +665,7 @@ const SndkAssistant = (() => {
       html += tableHtml(['المرفق', 'النوع', 'الموقع', 'حجز إلكتروني'], facilities.map((f) => [
         linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(f.id)}`, f.name),
         esc(f.type ? (FACILITY_TYPE_LABELS[f.type] || f.type) : '—'),
-        esc([f.city, f.district, f.nearby_landmark].filter(Boolean).join('، ') || '—'),
+        esc([f.city, f.district, f.directorate, f.nearby_landmark].filter(Boolean).join('، ') || '—'),
         bookingIds && bookingIds.has(f.id) ? 'متاح' : 'غير متاح',
       ]));
       buttons.push(...facilities.map((f) => linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(f.id)}`, f.name)));
