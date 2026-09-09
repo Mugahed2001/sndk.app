@@ -57,7 +57,8 @@ Epic هنا قصة مستخدم حقيقية بمعيار قبول واضح، ل
 - [x] Meta description + H1 لكل صفحة قائمة وسجلّ (Sprint 6)
 - [x] `robots.txt` + `sitemap.xml` للصفحات الثابتة (Sprint 6)
 - [ ] **Sitemap ديناميكي لكل طبيب/مرفق (415+/106+ سجلّ)** — يحتاج دالة حافة جديدة (`sitemap-dynamic` مثلاً) تستعلم القاعدة وتُعيد XML حقيقياً، أو ملف يُولَّد بسكربت بناء (لا يوجد خط بناء حالياً في هذا المشروع الثابت — قرار معماري: إمّا دالة حافة تُستدعى من `sitemap.xml` (لا يعمل مع GitHub Pages الساكن بدون توجيه) أو نطاق فرعي/دالة منفصلة تُسجَّل في Search Console مباشرة كمصدر sitemap إضافي.
-- [ ] Schema.org JSON-LD (`Physician`, `MedicalClinic`, `LocalBusiness`) لكل صفحة سجلّ — يفتح Rich Results في جوجل.
+- [x] Schema.org JSON-LD (`Physician`, `MedicalClinic`) لكل صفحة سجلّ — `setJsonLd()` في `js/common.js`، تُستدعى من `js/doctor.js`/`js/facility.js` بحقول مُشتقّة من بيانات محمَّلة أصلاً.
+- [x] OpenGraph/Twitter Cards — وسوم ثابتة في `<head>` كل صفحة + تحديث ديناميكي (`setSocialMeta()`) على صفحتَي الطبيب/المرفق (صورة الطبيب/المرفق الفعلية بدل الشعار العام حيث تتوفّر).
 - [ ] صفحات هبوط ثابتة القالب لكل (مدينة × تخصص) — أكبر فرصة نمو عضوي مجاني؛ تحتاج قالب صفحة جديد + توليد الروابط من بيانات `specialties`×`facilities.city` الموجودة فعلاً.
 - [ ] Breadcrumb مرئي + `BreadcrumbList` schema.
 - [ ] OpenGraph/Twitter Cards (مشاركة روابط أنيقة على واتساب — قناة التواصل الأساسية في اليمن، أثر مضاعف هنا تحديداً).

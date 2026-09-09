@@ -49,9 +49,30 @@ async function main() {
   document.title = `${doctor.name} — سندك الطبي`;
   const specialtyName = specialty ? (specialty.arabic_name || specialty.name) : '';
   const location = doctorLocationLabel(doctor);
-  setMetaDescription(
-    `${doctor.name}${specialtyName ? ` — أخصائي ${specialtyName}` : ''}${location ? ` في ${location}` : ''}. تواصل مباشرة عبر الهاتف أو واتساب على سندك الطبي.`,
-  );
+  const pageDescription = `${doctor.name}${specialtyName ? ` — أخصائي ${specialtyName}` : ''}${location ? ` في ${location}` : ''}. تواصل مباشرة عبر الهاتف أو واتساب على سندك الطبي.`;
+  setMetaDescription(pageDescription);
+  setSocialMeta({
+    title: `${doctor.name} — سندك الطبي`,
+    description: pageDescription,
+    image: doctor.photo_url || doctor.image_url || 'https://snadk.codeysaa.com/img/logo.png',
+  });
+  // Schema.org Physician — يفتح Rich Results (تقييم، تخصص) في نتائج البحث؛
+  // كل الحقول هنا مُشتقّة من بياناتٍ مُحمَّلة أصلاً، لا استعلام إضافي.
+  setJsonLd({
+    '@context': 'https://schema.org',
+    '@type': 'Physician',
+    name: doctor.name,
+    ...(specialtyName ? { medicalSpecialty: specialtyName } : {}),
+    ...(doctor.photo_url || doctor.image_url ? { image: doctor.photo_url || doctor.image_url } : {}),
+    ...(doctor.rating > 0 ? {
+      aggregateRating: {
+        '@type': 'AggregateRating',
+        ratingValue: doctor.rating,
+        reviewCount: doctor.reviews_count || 0,
+      },
+    } : {}),
+    url: window.location.href,
+  });
   render(doctor, schedules, specialty);
 }
 

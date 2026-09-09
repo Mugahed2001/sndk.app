@@ -45,9 +45,31 @@ async function main() {
 
   document.title = `${facility.name} — سندك الطبي`;
   const location = [facility.city, facility.district, facility.directorate].filter(Boolean).join('، ');
-  setMetaDescription(
-    `${facility.name}${facility.type ? ` — ${FACILITY_TYPE_LABELS[facility.type] || facility.type}` : ''}${location ? ` في ${location}` : ''}. الأطباء والمواعيد والتواصل المباشر على سندك الطبي.`,
-  );
+  const pageDescription = `${facility.name}${facility.type ? ` — ${FACILITY_TYPE_LABELS[facility.type] || facility.type}` : ''}${location ? ` في ${location}` : ''}. الأطباء والمواعيد والتواصل المباشر على سندك الطبي.`;
+  setMetaDescription(pageDescription);
+  setSocialMeta({
+    title: `${facility.name} — سندك الطبي`,
+    description: pageDescription,
+    image: facility.image_url || 'https://snadk.codeysaa.com/img/logo.png',
+  });
+  // Schema.org MedicalClinic — نفس مبدأ صفحة الطبيب، حقول مُشتقّة من بيانات
+  // مُحمَّلة أصلاً فقط.
+  setJsonLd({
+    '@context': 'https://schema.org',
+    '@type': 'MedicalClinic',
+    name: facility.name,
+    ...(facility.image_url ? { image: facility.image_url } : {}),
+    ...(facility.address || location ? { address: { '@type': 'PostalAddress', addressLocality: facility.city || '', streetAddress: facility.address || location } } : {}),
+    ...(facility.phone ? { telephone: facility.phone } : {}),
+    ...(facility.rating > 0 ? {
+      aggregateRating: {
+        '@type': 'AggregateRating',
+        ratingValue: facility.rating,
+        reviewCount: facility.reviews_count || 0,
+      },
+    } : {}),
+    url: window.location.href,
+  });
   render(facility, schedules);
   trackProfileViewAndDwell(facility.id);
 

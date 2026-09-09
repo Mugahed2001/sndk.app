@@ -42,6 +42,45 @@ function setMetaDescription(content) {
   tag.setAttribute('content', content);
 }
 
+/// Schema.org JSON-LD — يفتح Rich Results في جوجل (تقييمات، معلومات تواصل)
+/// على صفحات السجلّ. يُستبدَل الوسم بالكامل عند كل نداء (لا تراكم عند تنقّل
+/// SPA-مثل داخل نفس التحميل)؛ `data` كائن JS عادي يُحوَّل لـJSON مباشرة.
+function setJsonLd(data) {
+  let tag = document.getElementById('sndkJsonLd');
+  if (!tag) {
+    tag = document.createElement('script');
+    tag.type = 'application/ld+json';
+    tag.id = 'sndkJsonLd';
+    document.head.appendChild(tag);
+  }
+  tag.textContent = JSON.stringify(data);
+}
+
+/// OpenGraph/Twitter Card — تُحدَّث ديناميكياً لصفحات السجلّ (طبيب/مرفق) بعد
+/// وصول بياناتها؛ الوسوم الثابتة في HTML عامة فقط، نفس مبدأ setMetaDescription.
+/// أهمّ أثر عملي هنا: روابط أنيقة عند مشاركتها في واتساب — القناة الأساسية
+/// للتواصل في اليمن، فمعاينة رابط بلا صورة/عنوان واضح تُضعف نسبة النقر فعلياً.
+function setSocialMeta({ title, description, image, url }) {
+  const set = (selector, attr, value) => {
+    if (!value) return;
+    let tag = document.querySelector(selector);
+    if (!tag) {
+      tag = document.createElement('meta');
+      const [, key, val] = selector.match(/\[(\w+)="([^"]+)"\]/);
+      tag.setAttribute(key, val);
+      document.head.appendChild(tag);
+    }
+    tag.setAttribute(attr, value);
+  };
+  set('meta[property="og:title"]', 'content', title);
+  set('meta[property="og:description"]', 'content', description);
+  set('meta[property="og:image"]', 'content', image);
+  set('meta[property="og:url"]', 'content', url || window.location.href);
+  set('meta[name="twitter:title"]', 'content', title);
+  set('meta[name="twitter:description"]', 'content', description);
+  set('meta[name="twitter:image"]', 'content', image);
+}
+
 /// "آخر تحديث" — غيابها كانت أهمّ فجوة ثقة كشفها التدقيق الشامل (مريض لا
 /// يعرف إن كانت المعلومة حديثة، حتى حين تكون صحيحة فعلاً). `updated_at`
 /// موجود أصلاً في القاعدة، لم يكن يُعرَض فقط. `null`/تاريخ غير صالح ⇒
