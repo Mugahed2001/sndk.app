@@ -47,6 +47,32 @@ async function main() {
   }
 
   document.title = `${doctor.name} — سندك الطبي`;
+  const specialtyName = specialty ? (specialty.arabic_name || specialty.name) : '';
+  const location = doctorLocationLabel(doctor);
+  const pageDescription = `${doctor.name}${specialtyName ? ` — أخصائي ${specialtyName}` : ''}${location ? ` في ${location}` : ''}. تواصل مباشرة عبر الهاتف أو واتساب على سندك الطبي.`;
+  setMetaDescription(pageDescription);
+  setSocialMeta({
+    title: `${doctor.name} — سندك الطبي`,
+    description: pageDescription,
+    image: doctor.photo_url || doctor.image_url || 'https://snadk.codeysaa.com/img/logo.png',
+  });
+  // Schema.org Physician — يفتح Rich Results (تقييم، تخصص) في نتائج البحث؛
+  // كل الحقول هنا مُشتقّة من بياناتٍ مُحمَّلة أصلاً، لا استعلام إضافي.
+  setJsonLd({
+    '@context': 'https://schema.org',
+    '@type': 'Physician',
+    name: doctor.name,
+    ...(specialtyName ? { medicalSpecialty: specialtyName } : {}),
+    ...(doctor.photo_url || doctor.image_url ? { image: doctor.photo_url || doctor.image_url } : {}),
+    ...(doctor.rating > 0 ? {
+      aggregateRating: {
+        '@type': 'AggregateRating',
+        ratingValue: doctor.rating,
+        reviewCount: doctor.reviews_count || 0,
+      },
+    } : {}),
+    url: window.location.href,
+  });
   render(doctor, schedules, specialty);
 }
 
@@ -62,6 +88,16 @@ function renderTopbar() {
 
 function render(doctor, schedules, specialty) {
   const specialtyName = specialty ? (specialty.arabic_name || specialty.name) : '';
+  // "أين هو؟" فشلت خلال اختبار ١٠ ثوانٍ بتقييم مستخدم حيّ — لم تكن أي مدينة
+  // تظهر على صفحة الطبيب إطلاقاً. المرفق الأساسي (من get-doctors المُضمَّن
+  // الآن) يُعرض فوق الطيّ مباشرة، وزرّ خريطة بنقرة واحدة بجانبه بدل ٤ نقرات
+  // (طبيب ← بطاقة موعد ← صفحة المرفق ← زرّ الموقع) كما كان.
+  const facility = doctorPrimaryFacility(doctor);
+  const location = doctorLocationLabel(doctor);
+  // شارة "مفتوح الآن" — تحتاج جدولات الطبيب الفعلية، وهي مُحمَّلة أصلاً هنا
+  // (schedules وصلت من get-clinic-schedules في main() قبل الرسم).
+  const openNow = isOpenNow(schedules);
+  const lastUpdated = lastUpdatedLabel(doctor.updated_at);
 
   document.getElementById('root').innerHTML = `
     <div class="container" style="padding-top:16px;">
@@ -74,16 +110,33 @@ function render(doctor, schedules, specialty) {
           </div>
           <div style="flex:1;min-width:0;">
             <div class="row spread">
-              <div class="title-lg" style="font-size:18px;">${esc(doctor.name)}</div>
+              <h1 class="title-lg" style="font-size:18px;margin:0;">${esc(doctor.name)}</h1>
               <button class="btn btn-sm btn-outline" id="doctorShareBtn" title="مشاركة">
                 ${SNDK_ICONS.share(15, 'currentColor')}
               </button>
             </div>
             ${specialtyName ? `<div class="text-muted mt-8">${esc(specialtyName)}</div>` : ''}
+            ${location ? `
+              <div class="row wrap gap-8 mt-8" style="align-items:center;">
+                <span class="chip" style="background:${SNDK_HEX.primary}1F;color:${SNDK_HEX.primary};">${esc(location)}</span>
+                ${facility && facility.googl_map ? '<button class="btn btn-sm btn-outline" id="doctorMapBtn">الموقع</button>' : ''}
+              </div>
+            ` : ''}
+            ${schedules.length ? `
+              <div class="row wrap gap-8 mt-8">
+                <span class="chip" style="background:${openNow ? `${SNDK_HEX.success}1F` : 'rgba(120,120,120,.15)'};color:${openNow ? (SNDK_HEX.success) : 'var(--text-muted)'};">
+                  ${openNow ? 'مفتوح الآن' : 'غير متاح الآن'}
+                </span>
+              </div>
+            ` : ''}
             ${doctor.rating > 0 ? `<div class="row gap-8 mt-8">${SNDK_ICONS.star(15)}<span class="text-muted">${esc(String(doctor.rating))} (${esc(String(doctor.reviews_count || 0))})</span></div>` : ''}
           </div>
         </div>
         ${doctor.bio ? `<p class="text-muted mt-12">${esc(doctor.bio)}</p>` : ''}
+        <div class="row spread mt-12" style="font-size:11.5px;">
+          <span class="text-muted">${lastUpdated ? `آخر تحديث: ${esc(lastUpdated)}` : ''}</span>
+          <a href="${reportIssueLink('طبيب', doctor.name, doctor.id)}" class="text-muted" style="text-decoration:underline;">أبلغ عن معلومة خاطئة</a>
+        </div>
       </div>
 
       <div class="section-title" style="margin:20px 0 8px;">مواعيد الطبيب</div>
@@ -96,6 +149,10 @@ function render(doctor, schedules, specialty) {
   wireImageFallbacks(document.getElementById('root'));
   document.getElementById('doctorShareBtn').addEventListener('click', () => {
     shareLink(`${window.location.origin}${sndkBasePath()}/doctor/${doctor.id}`, doctor.name);
+  });
+  document.getElementById('doctorMapBtn')?.addEventListener('click', () => {
+    const q = encodeURIComponent(`${facility.address || ''} ${facility.name || ''}`.trim());
+    window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, '_blank');
   });
 
   loadDoctorSchedules(doctor, schedules);

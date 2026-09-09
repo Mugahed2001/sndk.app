@@ -6,6 +6,47 @@
 
 let doctorsSearchTimer = null;
 let specialtiesById = {};
+let specialtiesList = [];
+let doctorCityFilter = '';
+// كل صفحة أطباء مُحمَّلة سابقاً — نُبقيها لتصفية المدينة محلياً بلا إعادة
+// طلب من الخادم (city ليست فلتر get-doctors، بل مُشتقّة من facility_doctors
+// المُضمَّن أصلاً في كل استجابة).
+let lastLoadedDoctors = [];
+
+// "دكتور أطفال" في صندوق بحث نصّه يقول "ابحث عن طبيب أو تخصص" كان يُرسَل
+// حرفياً كاسمٍ (get-doctors.q يطابق العمود name فقط) فيعود بلا نتائج مطلقاً
+// — أكبر فجوة كشفها تقييم مستخدم حيّ (السيناريو الأول بالكامل). كلمات
+// الطبيب/التخصيص العامة تُسقَط أولاً، وما تبقّى يُقارَن بأسماء التخصصات
+// الحقيقية؛ تطابقٌ يُحوَّل تلقائياً لفلتر تخصص بدل نص اسمٍ لن يجد شيئاً.
+const DOCTOR_FILLER_WORDS = ['دكتور', 'دكاترة', 'طبيب', 'أطباء', 'اطباء', 'طيب', 'اطبا', 'دختر', 'حكيم', 'في', 'من'];
+
+function normalizeSimple(t) {
+  return (t || '')
+    .replace(/[ً-ٰ]/g, '')
+    .replace(/[إأآا]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .toLowerCase()
+    .trim();
+}
+
+const DOCTOR_FILLER_WORDS_NORM = new Set(DOCTOR_FILLER_WORDS.map(normalizeSimple));
+
+// مطابقة كلمة-بكلمة لا سلسلة كاملة: تخصصات كثيرة أسماؤها متعدّدة الكلمات
+// ("الاطفال وحديثي الولادة") — طلبٌ بكلمة واحدة فقط ("أطفال") لن يكون أبداً
+// سلسلة فرعية من الاسم الكامل، فمقارنة `n.includes(fullName)` تفشل دائماً
+// في هذه الحالة رغم صحّة المطابقة منطقياً (نفس عطل حقيقي رُصد أثناء الكتابة).
+function findMatchedSpecialty(rawQuery) {
+  const words = normalizeSimple(rawQuery).split(' ').filter((w) => w && !DOCTOR_FILLER_WORDS_NORM.has(w));
+  if (!words.length) return null;
+  return specialtiesList.find((s) => {
+    const name = normalizeSimple(s.arabic_name || s.name || '');
+    const specialtyWords = name.split(' ')
+      .map((w) => (w.startsWith('ال') ? w.slice(2) : w))
+      .filter((w) => w.length >= 3);
+    return words.some((w) => specialtyWords.some((sw) => sw === w || sw.includes(w) || w.includes(sw)));
+  }) || null;
+}
 
 async function main() {
   renderTopbar();
@@ -19,6 +60,7 @@ async function main() {
   try {
     const specialties = await SndkApi.getData('get-specialties', { query: { limit: 200 } });
     if (Array.isArray(specialties)) {
+      specialtiesList = specialties;
       specialtiesById = Object.fromEntries(specialties.map((s) => [s.id, s]));
       const select = document.getElementById('specialtyFilterSelect');
       for (const s of specialties.sort((a, b) => (a.arabic_name || a.name || '').localeCompare(b.arabic_name || b.name || '', 'ar'))) {
@@ -41,30 +83,110 @@ async function main() {
   document.getElementById('specialtyFilterSelect').addEventListener('change', (e) => {
     loadDoctors(document.getElementById('doctorSearchInput').value.trim(), e.target.value);
   });
+  document.getElementById('cityFilterSelect').addEventListener('change', (e) => {
+    doctorCityFilter = e.target.value;
+    renderDoctorsList(lastLoadedDoctors);
+  });
+}
+
+// خيارات المدينة تُبنى من دفعة الأطباء المُحمَّلة فعلياً (لا طلب إضافي)
+// عبر doctorPrimaryFacility المُشترَكة من common.js — نفس المصدر الذي
+// يُبنى منه شريط الموقع على كل بطاقة طبيب.
+function rebuildCityOptions(doctors) {
+  const select = document.getElementById('cityFilterSelect');
+  const current = select.value;
+  const cities = [...new Set(doctors.map((d) => {
+    const f = doctorPrimaryFacility(d);
+    return f && f.city;
+  }).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ar'));
+
+  select.innerHTML = '<option value="">كل المدن</option>' +
+    cities.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  if (cities.includes(current)) select.value = current;
+  else doctorCityFilter = '';
 }
 
 async function loadDoctors(q, specialtyId) {
   const body = document.getElementById('doctorsBody');
   body.innerHTML = '<div class="skeleton" style="height:90px;"></div><div class="skeleton" style="height:90px;"></div>';
 
-  const query = { limit: 60 };
-  if (q) query.q = q;
-  if (specialtyId) query.specialty_id = specialtyId;
+  // النصّ يطابق تخصصاً معروفاً ولا تخصص مُختار صراحةً من القائمة ⇒ فلترة
+  // بالتخصص لا بالاسم. القائمة المنسدلة تُحدَّث بصرياً لتوضيح لماذا تغيّرت
+  // النتائج بدل تخصيصٍ صامت لا يفهم المستخدم سببه.
+  let effectiveSpecialtyId = specialtyId;
+  let effectiveQ = q;
+  if (!specialtyId && q) {
+    const matched = findMatchedSpecialty(q);
+    if (matched) {
+      effectiveSpecialtyId = matched.id;
+      effectiveQ = '';
+      const select = document.getElementById('specialtyFilterSelect');
+      if (select) select.value = matched.id;
+    }
+  }
 
-  let doctors;
+  let doctors = [];
   try {
-    doctors = await SndkApi.getData('get-doctors', { query });
+    if (effectiveQ) {
+      for (const variant of spellingVariants(effectiveQ)) {
+        const query = { limit: 60, q: variant };
+        if (effectiveSpecialtyId) query.specialty_id = effectiveSpecialtyId;
+        doctors = await SndkApi.getData('get-doctors', { query });
+        if (Array.isArray(doctors) && doctors.length) break;
+      }
+    } else {
+      const query = { limit: 60 };
+      if (effectiveSpecialtyId) query.specialty_id = effectiveSpecialtyId;
+      doctors = await SndkApi.getData('get-doctors', { query });
+    }
   } catch (err) {
     body.innerHTML = `<div class="state-box">تعذّر تحميل الأطباء.<br>${esc(err.message)}</div>`;
     return;
   }
 
-  if (!Array.isArray(doctors) || doctors.length === 0) {
+  if (!Array.isArray(doctors)) doctors = [];
+  lastLoadedDoctors = doctors;
+  rebuildCityOptions(doctors);
+  renderDoctorsList(doctors, { q: effectiveQ, hadFilter: !!(q || specialtyId) });
+}
+
+// رسالة "لا نتائج" وحيدة عامة تكرَّرت في كل سياق — التدقيق رصدها كفجوة
+// تجربة مستخدم فعلية (زائر لا يعرف هل يُعدِّل الفلتر أم يبحث بكلمة مختلفة).
+// هنا تُخصَّص حسب السبب الفعلي: فلتر مدينة فارغ لمدينةٍ لا يوجد بها أطباء
+// (حلٌّ واضح: أزل فلتر المدينة) مقابل بحثٍ عامّ بلا نتائج (اقتراح تخصص قريب
+// من كلمات الاستعلام إن وُجد، وإلا نصّ عام يقترح تبسيط الكلمة).
+function renderDoctorsList(doctors, ctx = {}) {
+  const body = document.getElementById('doctorsBody');
+  const filtered = doctorCityFilter
+    ? doctors.filter((d) => (doctorPrimaryFacility(d) || {}).city === doctorCityFilter)
+    : doctors;
+
+  if (filtered.length === 0) {
+    if (doctorCityFilter && doctors.length > 0) {
+      body.innerHTML = `<div class="state-box">لا أطباء في مدينة "${esc(doctorCityFilter)}" لهذا البحث.<br>جرّب <button class="btn btn-sm btn-outline" id="clearCityFilterBtn" style="margin-top:8px;">إزالة فلتر المدينة</button></div>`;
+      document.getElementById('clearCityFilterBtn')?.addEventListener('click', () => {
+        doctorCityFilter = '';
+        document.getElementById('cityFilterSelect').value = '';
+        renderDoctorsList(lastLoadedDoctors, ctx);
+      });
+      return;
+    }
+    if (ctx.q) {
+      const near = specialtiesList.find((s) => {
+        const name = normalizeSimple(s.arabic_name || s.name || '');
+        return name.split(' ').some((w) => w.length >= 3 && normalizeSimple(ctx.q).includes(w.slice(0, 3)));
+      });
+      body.innerHTML = `<div class="state-box">
+        لا نتائج لـ"${esc(ctx.q)}".<br>
+        جرّب كلمة أقصر أو تحقّق من الإملاء${near ? `، أو تصفّح تخصص "${esc(near.arabic_name || near.name)}"` : ''}.
+      </div>`;
+      return;
+    }
     body.innerHTML = '<div class="state-box">لا نتائج مطابقة.</div>';
     return;
   }
 
-  body.innerHTML = doctors.map((d) => doctorCardHtml(d, specialtiesById)).join('');
+  body.innerHTML = filtered.map((d) => doctorCardHtml(d, specialtiesById)).join('');
   wireImageFallbacks(body);
   wireDoctorCards(body);
 }

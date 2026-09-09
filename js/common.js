@@ -28,6 +28,124 @@ function cleanPhone(p) {
   return (p || '').replace(/\s+/g, '');
 }
 
+/// يُحدِّث وصف meta الوصفي بعد وصول بيانات السجلّ (طبيب/مرفق) — الوسم
+/// الثابت في HTML عامٌّ فقط (لا بيانات ديناميكية ممكنة بلا عرضٍ من الخادم)،
+/// وهذا يُغنيه بمحتوى حقيقي بمجرد التحميل. جزّاحف جوجل الحديثة تُنفِّذ
+/// JavaScript فتلتقط هذا، وإن لم تفعل يبقى الوصف العام في HTML كبديل.
+function setMetaDescription(content) {
+  let tag = document.querySelector('meta[name="description"]');
+  if (!tag) {
+    tag = document.createElement('meta');
+    tag.setAttribute('name', 'description');
+    document.head.appendChild(tag);
+  }
+  tag.setAttribute('content', content);
+}
+
+/// Schema.org JSON-LD — يفتح Rich Results في جوجل (تقييمات، معلومات تواصل)
+/// على صفحات السجلّ. يُستبدَل الوسم بالكامل عند كل نداء (لا تراكم عند تنقّل
+/// SPA-مثل داخل نفس التحميل)؛ `data` كائن JS عادي يُحوَّل لـJSON مباشرة.
+function setJsonLd(data) {
+  let tag = document.getElementById('sndkJsonLd');
+  if (!tag) {
+    tag = document.createElement('script');
+    tag.type = 'application/ld+json';
+    tag.id = 'sndkJsonLd';
+    document.head.appendChild(tag);
+  }
+  tag.textContent = JSON.stringify(data);
+}
+
+/// OpenGraph/Twitter Card — تُحدَّث ديناميكياً لصفحات السجلّ (طبيب/مرفق) بعد
+/// وصول بياناتها؛ الوسوم الثابتة في HTML عامة فقط، نفس مبدأ setMetaDescription.
+/// أهمّ أثر عملي هنا: روابط أنيقة عند مشاركتها في واتساب — القناة الأساسية
+/// للتواصل في اليمن، فمعاينة رابط بلا صورة/عنوان واضح تُضعف نسبة النقر فعلياً.
+function setSocialMeta({ title, description, image, url }) {
+  const set = (selector, attr, value) => {
+    if (!value) return;
+    let tag = document.querySelector(selector);
+    if (!tag) {
+      tag = document.createElement('meta');
+      const [, key, val] = selector.match(/\[(\w+)="([^"]+)"\]/);
+      tag.setAttribute(key, val);
+      document.head.appendChild(tag);
+    }
+    tag.setAttribute(attr, value);
+  };
+  set('meta[property="og:title"]', 'content', title);
+  set('meta[property="og:description"]', 'content', description);
+  set('meta[property="og:image"]', 'content', image);
+  set('meta[property="og:url"]', 'content', url || window.location.href);
+  set('meta[name="twitter:title"]', 'content', title);
+  set('meta[name="twitter:description"]', 'content', description);
+  set('meta[name="twitter:image"]', 'content', image);
+}
+
+/// "آخر تحديث" — غيابها كانت أهمّ فجوة ثقة كشفها التدقيق الشامل (مريض لا
+/// يعرف إن كانت المعلومة حديثة، حتى حين تكون صحيحة فعلاً). `updated_at`
+/// موجود أصلاً في القاعدة، لم يكن يُعرَض فقط. `null`/تاريخ غير صالح ⇒
+/// نصّ فارغ — لا نعرض "آخر تحديث: —" المُضلِّلة.
+function lastUpdatedLabel(dateStr) {
+  const d = dateStr ? new Date(dateStr) : null;
+  if (!d || Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+/// رابط "أبلغ عن معلومة خاطئة" — بريد مباشر لا نموذج/جدول جديد: أرخص حلّ
+/// حقيقي ممكن الآن (التدقيق نفسه صنّفه "أرخص إصلاح ممكن")، ولاحقاً إن
+/// كثرت البلاغات يستحق نظاماً مخصَّصاً — لا قبل أن يثبت الطلب فعلياً.
+function reportIssueLink(kind, name, id) {
+  const subject = encodeURIComponent(`بلاغ معلومة غير صحيحة — ${name}`);
+  const body = encodeURIComponent(`نوع السجلّ: ${kind}\nالاسم: ${name}\nالمعرّف: ${id}\nالرابط: ${window.location.href}\n\nوصف الخطأ:\n`);
+  return `mailto:privacy@snadk.codeysaa.com?subject=${subject}&body=${body}`;
+}
+
+/// "مفتوح الآن" — يوفّر على المريض مقارنة ذهنية بين تاريخ اليوم وجدول
+/// أيام/فترات نصّي. يتحقّق من **يوم اليوم ووقته الفعليين** ضد كل الجدولات
+/// المُمرَّرة (طبيب أو مرفق قد يعمل بأكثر من جدول/فترة)، لا أوّل جدولٍ فقط.
+const DAY_NAMES_AR_ORDER = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+function isOpenNow(schedules) {
+  const now = new Date();
+  // JS: الأحد=0...السبت=6. ترتيب التطبيق: السبت=0...الجمعة=6 — تحويل مباشر.
+  const todayIndex = (now.getDay() + 6) % 7;
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  return (schedules || []).some((s) => {
+    const days = Array.isArray(s.working_days) && s.working_days.length
+      ? s.working_days
+      : (Number.isInteger(s.day_of_week) ? [s.day_of_week === 7 ? 1 : s.day_of_week + 1] : []);
+    if (!days.includes(todayIndex)) return false;
+    if (!s.start_time || !s.end_time) return true; // يوم صحيح بلا وقت محدَّد — لا نفترض إغلاقاً.
+    const [sh, sm] = s.start_time.split(':').map(Number);
+    const [eh, em] = s.end_time.split(':').map(Number);
+    if ([sh, sm, eh, em].some(Number.isNaN)) return true;
+    const startMin = sh * 60 + sm;
+    const endMin = eh * 60 + em;
+    return nowMinutes >= startMin && nowMinutes <= endMin;
+  });
+}
+
+/// مسافة حقيقية بالكيلومتر (Haversine) — لفرز "الأقرب مني" بعد GPS.
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/// خطأ إملائي شائع جداً في العربية (ة/ه) كان يُعيد صفر نتائج في بحث الأطباء
+/// والمرافق رغم وجود المطابقة فعلياً بالتهجئة الأخرى — رُصد حيّاً ("الصفوه"
+/// لم يطابق "الصفوة" المخزَّنة). `ilike` الخادم مطابقة نصّية حرفية لا لغوية،
+/// فالحل: مُستدعي البحث يجرّب كل ة⇄ه إن فشلت السلسلة كما كُتبت أولاً.
+function spellingVariants(q) {
+  const variants = new Set([q]);
+  if (q.includes('ة')) variants.add(q.replace(/ة/g, 'ه'));
+  if (q.includes('ه')) variants.add(q.replace(/ه/g, 'ة'));
+  return [...variants];
+}
+
 const SNDK_PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.code_yemen.snd_health';
 
 /// رابط زرّ «حمّل التطبيق»: على أندرويد يُحوَّل عبر `intent://` إلى فتح
@@ -441,11 +559,35 @@ function wireFacilityCards(root) {
   });
 }
 
+/// أول مرفقٍ نشط للطبيب (من التضمين `facility_doctors(...facilities(...))`
+/// في get-doctors) — طبيبٌ قد يعمل في عدّة مرافق، لكن بطاقة/رأس صفحة سريعة
+/// تحتاج واحداً يُعرض فوراً لا قائمة كاملة. `null` إن غاب التضمين (نداءٍ لا
+/// يطلبه، كأزرار المرافق في وضعٍ آخر) أو خلا الطبيب من أي ارتباط نشط.
+function doctorPrimaryFacility(d) {
+  const links = Array.isArray(d.facility_doctors) ? d.facility_doctors : [];
+  const active = links.find((l) => l.facilities && l.facilities.is_active !== false && !l.facilities.deleted_at);
+  return active ? active.facilities : null;
+}
+
+/// "أين هو؟" — أهم فجوة كشفها تقييم مستخدم حيّ (فشلت خلال اختبار ١٠ ثوانٍ
+/// لصفحة الطبيب لأن لا مدينة تظهر إطلاقاً). المدينة أولاً ثم المنطقة/
+/// المديرية/المعلم — من الأعمّ إلى الأدقّ.
+function doctorLocationLabel(d) {
+  const f = doctorPrimaryFacility(d);
+  if (!f) return '';
+  const parts = [f.city, f.district, f.directorate, f.nearby_landmark].filter(Boolean);
+  const links = Array.isArray(d.facility_doctors) ? d.facility_doctors : [];
+  const moreCount = links.filter((l) => l.facilities && l.facilities.is_active !== false && !l.facilities.deleted_at).length - 1;
+  const suffix = moreCount > 0 ? ` (+${moreCount} مرافق أخرى)` : '';
+  return parts.length ? `${parts.join('، ')}${suffix}` : '';
+}
+
 /// بطاقة طبيب — مشتركة بين doctors.js وindex.js. specialtiesById خريطة
 /// اختيارية id→صفّ تخصص (لعرض اسمه دون نداءٍ إضافي لكل بطاقة).
 function doctorCardHtml(d, specialtiesById) {
   const specialty = specialtiesById ? specialtiesById[d.specialty_id] : null;
   const specialtyName = specialty ? (specialty.arabic_name || specialty.name) : '';
+  const location = doctorLocationLabel(d);
   return `
     <div class="card card-pad mb-12 doctor-card-link" data-doctor-id="${esc(d.id)}" style="cursor:pointer;">
       <div class="row gap-12">
@@ -457,6 +599,7 @@ function doctorCardHtml(d, specialtiesById) {
         <div style="flex:1;min-width:0;">
           <div style="font-weight:700;">${esc(d.name)}</div>
           ${specialtyName ? `<div class="text-muted mt-8">${esc(specialtyName)}</div>` : ''}
+          ${location ? `<div class="row wrap gap-8 mt-8"><span class="chip" style="background:${SNDK_HEX.primary}1F;color:${SNDK_HEX.primary};">${esc(location)}</span></div>` : ''}
           ${d.rating > 0 ? `<div class="row gap-8 mt-8">${SNDK_ICONS.star(14)}<span class="text-muted">${esc(String(d.rating))} (${esc(String(d.reviews_count || 0))})</span></div>` : ''}
         </div>
       </div>

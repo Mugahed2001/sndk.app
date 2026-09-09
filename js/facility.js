@@ -44,6 +44,32 @@ async function main() {
   }
 
   document.title = `${facility.name} — سندك الطبي`;
+  const location = [facility.city, facility.district, facility.directorate].filter(Boolean).join('، ');
+  const pageDescription = `${facility.name}${facility.type ? ` — ${FACILITY_TYPE_LABELS[facility.type] || facility.type}` : ''}${location ? ` في ${location}` : ''}. الأطباء والمواعيد والتواصل المباشر على سندك الطبي.`;
+  setMetaDescription(pageDescription);
+  setSocialMeta({
+    title: `${facility.name} — سندك الطبي`,
+    description: pageDescription,
+    image: facility.image_url || 'https://snadk.codeysaa.com/img/logo.png',
+  });
+  // Schema.org MedicalClinic — نفس مبدأ صفحة الطبيب، حقول مُشتقّة من بيانات
+  // مُحمَّلة أصلاً فقط.
+  setJsonLd({
+    '@context': 'https://schema.org',
+    '@type': 'MedicalClinic',
+    name: facility.name,
+    ...(facility.image_url ? { image: facility.image_url } : {}),
+    ...(facility.address || location ? { address: { '@type': 'PostalAddress', addressLocality: facility.city || '', streetAddress: facility.address || location } } : {}),
+    ...(facility.phone ? { telephone: facility.phone } : {}),
+    ...(facility.rating > 0 ? {
+      aggregateRating: {
+        '@type': 'AggregateRating',
+        ratingValue: facility.rating,
+        reviewCount: facility.reviews_count || 0,
+      },
+    } : {}),
+    url: window.location.href,
+  });
   render(facility, schedules);
   trackProfileViewAndDwell(facility.id);
 
@@ -109,6 +135,8 @@ function render(facility, schedules) {
   const whatsapps = facility.whatsapps && facility.whatsapps.length ? facility.whatsapps : (facility.whatsapp ? [facility.whatsapp] : []);
   const primaryPhone = phones[0];
   const primaryWhatsapp = whatsapps[0];
+  const openNow = isOpenNow(schedules);
+  const lastUpdated = lastUpdatedLabel(facility.updated_at);
 
   document.getElementById('root').innerHTML = `
     <div class="card card-pad" style="margin:16px;">
@@ -120,13 +148,14 @@ function render(facility, schedules) {
         </div>
         <div style="flex:1;min-width:0;">
           <div class="row spread">
-            <div class="title-lg" style="font-size:18px;">${esc(facility.name)}</div>
+            <h1 class="title-lg" style="font-size:18px;margin:0;">${esc(facility.name)}</h1>
             <button class="btn btn-sm btn-outline" id="shareBtn" title="نسخ الرابط">مشاركة</button>
           </div>
           <div class="row wrap gap-8 mt-12">
             ${facility.type ? chip(FACILITY_TYPE_LABELS[facility.type] || facility.type, SNDK_HEX.secondaryTeal) : ''}
             ${locationLabel(facility) ? chip(locationLabel(facility), SNDK_HEX.primary) : ''}
             ${doctors.length ? chip(`${doctors.length} طبيب`, SNDK_HEX.accentPurple) : ''}
+            ${schedules.length ? chip(openNow ? 'مفتوح الآن' : 'غير متاح الآن', openNow ? SNDK_HEX.success : SNDK_HEX.textMuted) : ''}
           </div>
           <div class="row wrap gap-8 mt-12" id="primaryActions">
             ${primaryWhatsapp ? `<button class="btn btn-sm btn-filled" id="waBtn">واتساب</button>` : ''}
@@ -135,6 +164,10 @@ function render(facility, schedules) {
             ${schedules.length ? `<button class="btn btn-sm btn-outline" id="jumpSchedulesBtn">المواعيد</button>` : ''}
           </div>
         </div>
+      </div>
+      <div class="row spread mt-12" style="font-size:11.5px;">
+        <span class="text-muted">${lastUpdated ? `آخر تحديث: ${esc(lastUpdated)}` : ''}</span>
+        <a href="${reportIssueLink('مرفق', facility.name, facility.id)}" class="text-muted" style="text-decoration:underline;">أبلغ عن معلومة خاطئة</a>
       </div>
     </div>
 

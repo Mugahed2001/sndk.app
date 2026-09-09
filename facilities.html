@@ -5,7 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https://zoveiphxwzckgzavvrlb.supabase.co data:; connect-src 'self' https://zoveiphxwzckgzavvrlb.supabase.co">
 <title>المستشفيات والعيادات — سندك الطبي</title>
+<meta name="description" content="دليل المستشفيات والعيادات والمراكز الطبية في اليمن — ابحث بالاسم أو المدينة، وتواصل مباشرة عبر الهاتف أو واتساب.">
 <link rel="icon" type="image/png" href="/img/logo.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="سندك الطبي">
+<meta property="og:title" content="المستشفيات والعيادات — سندك الطبي">
+<meta property="og:description" content="دليل المستشفيات والعيادات والمراكز الطبية في اليمن — ابحث بالاسم أو المدينة، وتواصل مباشرة عبر الهاتف أو واتساب.">
+<meta property="og:image" content="https://snadk.codeysaa.com/img/logo.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="المستشفيات والعيادات — سندك الطبي">
+<meta name="twitter:description" content="دليل المستشفيات والعيادات والمراكز الطبية في اليمن — ابحث بالاسم أو المدينة، وتواصل مباشرة عبر الهاتف أو واتساب.">
+<meta name="twitter:image" content="https://snadk.codeysaa.com/img/logo.png">
 <link rel="preconnect" href="https://zoveiphxwzckgzavvrlb.supabase.co">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,8 +31,17 @@
   </div>
 
   <div class="container" style="padding-top:16px;">
-    <div class="title-lg" style="font-size:20px;margin-bottom:12px;">المستشفيات والعيادات</div>
+    <h1 class="title-lg" style="font-size:20px;margin-bottom:12px;">المستشفيات والعيادات</h1>
     <input class="field" id="facilitySearchInput" placeholder="ابحث بالاسم أو المدينة…">
+    <div class="row wrap gap-8 mt-8">
+      <select class="field" id="cityFilterSelect" style="flex:1;min-width:140px;">
+        <option value="">كل المدن</option>
+      </select>
+      <select class="field" id="typeFilterSelect" style="flex:1;min-width:140px;">
+        <option value="">كل الأنواع</option>
+      </select>
+      <button class="btn btn-sm btn-outline" id="nearMeBtn"></button>
+    </div>
     <div id="facilitiesBody">
       <div class="skeleton" style="height:120px;"></div>
       <div class="skeleton" style="height:120px;"></div>
@@ -30,16 +49,16 @@
     </div>
   </div>
 
-  <footer class="site-footer">© سندك الطبي</footer>
+  <footer class="site-footer">© سندك الطبي · <a href="/terms" style="color:inherit;text-decoration:underline;">شروط الاستخدام</a> · <a href="/privacy" style="color:inherit;text-decoration:underline;">الخصوصية</a><br><span style="display:block;margin-top:6px;font-size:11px;">المحتوى معلوماتي ولا يُغني عن استشارة طبيب — في الطوارئ توجّه لأقرب مستشفى فوراً.</span></footer>
 
   <script src="js/routing.js?v=22"></script>
-  <script src="js/common.js?v=22"></script>
+  <script src="js/common.js?v=26"></script>
   <script src="js/config.js?v=22"></script>
   <script src="js/api.js?v=22"></script>
   <script src="js/auth.js?v=22"></script>
   <script src="js/auth-ui.js?v=22"></script>
   <script src="js/nav.js?v=22"></script>
-  <script src="js/assistant-loader.js?v=23"></script>
-  <script src="js/facilities.js?v=22"></script>
+  <script src="js/assistant-loader.js?v=34"></script>
+  <script src="js/facilities.js?v=29"></script>
 </body>
 </html>
