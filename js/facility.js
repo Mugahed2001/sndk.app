@@ -44,6 +44,10 @@ async function main() {
   }
 
   document.title = `${facility.name} — سندك الطبي`;
+  const location = [facility.city, facility.district, facility.directorate].filter(Boolean).join('، ');
+  setMetaDescription(
+    `${facility.name}${facility.type ? ` — ${FACILITY_TYPE_LABELS[facility.type] || facility.type}` : ''}${location ? ` في ${location}` : ''}. الأطباء والمواعيد والتواصل المباشر على سندك الطبي.`,
+  );
   render(facility, schedules);
   trackProfileViewAndDwell(facility.id);
 
@@ -120,7 +124,7 @@ function render(facility, schedules) {
         </div>
         <div style="flex:1;min-width:0;">
           <div class="row spread">
-            <div class="title-lg" style="font-size:18px;">${esc(facility.name)}</div>
+            <h1 class="title-lg" style="font-size:18px;margin:0;">${esc(facility.name)}</h1>
             <button class="btn btn-sm btn-outline" id="shareBtn" title="نسخ الرابط">مشاركة</button>
           </div>
           <div class="row wrap gap-8 mt-12">

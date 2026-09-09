@@ -47,6 +47,11 @@ async function main() {
   }
 
   document.title = `${doctor.name} — سندك الطبي`;
+  const specialtyName = specialty ? (specialty.arabic_name || specialty.name) : '';
+  const location = doctorLocationLabel(doctor);
+  setMetaDescription(
+    `${doctor.name}${specialtyName ? ` — أخصائي ${specialtyName}` : ''}${location ? ` في ${location}` : ''}. تواصل مباشرة عبر الهاتف أو واتساب على سندك الطبي.`,
+  );
   render(doctor, schedules, specialty);
 }
 
@@ -80,7 +85,7 @@ function render(doctor, schedules, specialty) {
           </div>
           <div style="flex:1;min-width:0;">
             <div class="row spread">
-              <div class="title-lg" style="font-size:18px;">${esc(doctor.name)}</div>
+              <h1 class="title-lg" style="font-size:18px;margin:0;">${esc(doctor.name)}</h1>
               <button class="btn btn-sm btn-outline" id="doctorShareBtn" title="مشاركة">
                 ${SNDK_ICONS.share(15, 'currentColor')}
               </button>

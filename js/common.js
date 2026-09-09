@@ -28,6 +28,20 @@ function cleanPhone(p) {
   return (p || '').replace(/\s+/g, '');
 }
 
+/// يُحدِّث وصف meta الوصفي بعد وصول بيانات السجلّ (طبيب/مرفق) — الوسم
+/// الثابت في HTML عامٌّ فقط (لا بيانات ديناميكية ممكنة بلا عرضٍ من الخادم)،
+/// وهذا يُغنيه بمحتوى حقيقي بمجرد التحميل. جزّاحف جوجل الحديثة تُنفِّذ
+/// JavaScript فتلتقط هذا، وإن لم تفعل يبقى الوصف العام في HTML كبديل.
+function setMetaDescription(content) {
+  let tag = document.querySelector('meta[name="description"]');
+  if (!tag) {
+    tag = document.createElement('meta');
+    tag.setAttribute('name', 'description');
+    document.head.appendChild(tag);
+  }
+  tag.setAttribute('content', content);
+}
+
 /// خطأ إملائي شائع جداً في العربية (ة/ه) كان يُعيد صفر نتائج في بحث الأطباء
 /// والمرافق رغم وجود المطابقة فعلياً بالتهجئة الأخرى — رُصد حيّاً ("الصفوه"
 /// لم يطابق "الصفوة" المخزَّنة). `ilike` الخادم مطابقة نصّية حرفية لا لغوية،
