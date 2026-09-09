@@ -6,11 +6,22 @@
 
 let facilitiesSearchTimer = null;
 let cityFilter = '';
+// "مستشفى" وحده ليس تأكيداً على وجود قسم طوارئ حقيقي فعّال ٢٤/٧ — لا عمود
+// `has_emergency` في القاعدة أصلاً (قرار بيانات/منتج لم يُتّخذ بعد: من يُدخل
+// هذه العلامة ومتى تُراجَع). لكنه أدقّ إشارة متاحة *الآن* بلا أي تعديل مخطّط:
+// عمود `type` موجود ومُدخَل فعلاً لكل مرفق. زرّ "أقرب طوارئ" في ردّ المساعد
+// (js/assistant.js) يفتح هذه الصفحة بـ?type=hospital بدل عرض كل المرافق
+// بلا تمييز كما كان — تحسينٌ حقيقي، لا حلٌّ نهائي.
+let typeFilter = '';
 let userLocation = null; // {lat, lng} | null — بعد نجاح GPS
 
 async function main() {
   renderTopbar();
-  await loadCityOptions();
+  const params = new URLSearchParams(window.location.search);
+  typeFilter = params.get('type') || '';
+
+  await loadFilterOptions();
+  if (typeFilter) document.getElementById('typeFilterSelect').value = typeFilter;
   await loadFacilities('');
 
   document.getElementById('facilitySearchInput').addEventListener('input', (e) => {
@@ -22,16 +33,41 @@ async function main() {
     cityFilter = e.target.value;
     loadFacilities(document.getElementById('facilitySearchInput').value.trim());
   });
+  document.getElementById('typeFilterSelect').addEventListener('change', (e) => {
+    typeFilter = e.target.value;
+    loadFacilities(document.getElementById('facilitySearchInput').value.trim());
+  });
   document.getElementById('nearMeBtn').addEventListener('click', requestNearMe);
 }
 
-// قائمة المدن تُبنى من بيانات حقيقية (٢٠٠ مرفق كحدّ أقصى، طلبٌ واحد بلا
-// فلترة) لا من قائمة ثابتة مكتوبة يدوياً — تبقى متزامنة مع القاعدة دائماً،
-// وتتجنّب أي تفاوت إملائي بين ما يُكتَب هنا وما هو مخزَّن فعلياً.
-async function loadCityOptions() {
+// FACILITY_TYPE_LABELS يحمل مفتاحين لنفس "مركز طبي" (medicalCenter/
+// medical_center، توافقاً مع تسميتين تاريخيتين في القاعدة) — تُبنى القائمة
+// من قيم فعلية موجودة في السجلات المُحمَّلة لا من كل مفاتيح الثابت، فلا
+// يظهر خيارٌ مكرَّر ولا خيارٌ لنوعٍ لا يملكه أي مرفق حالياً.
+async function loadTypeOptions(facilities) {
+  const select = document.getElementById('typeFilterSelect');
+  const seenLabels = new Set(Array.from(select.options).map((o) => o.textContent));
+  const types = [...new Set(facilities.map((f) => f.type).filter(Boolean))];
+  for (const t of types) {
+    const label = FACILITY_TYPE_LABELS[t] || t;
+    if (seenLabels.has(label)) continue;
+    seenLabels.add(label);
+    const opt = document.createElement('option');
+    opt.value = t;
+    opt.textContent = label;
+    select.appendChild(opt);
+  }
+}
+
+// قائمتا المدينة والنوع تُبنيان من بيانات حقيقية (٢٠٠ مرفق كحدّ أقصى، طلبٌ
+// واحد مشترك بلا فلترة) لا من قائمة ثابتة مكتوبة يدوياً — تبقيان متزامنتين
+// مع القاعدة دائماً، وتتجنّبان أي تفاوت إملائي بين ما يُكتَب هنا وما هو
+// مخزَّن فعلياً. طلبٌ واحد لا طلبان لتفادي مضاعفة عدد نداءات الصفحة.
+async function loadFilterOptions() {
   try {
     const all = await SndkApi.getData('get-facilities', { query: { limit: 200 } });
-    const cities = [...new Set((Array.isArray(all) ? all : []).map((f) => f.city).filter(Boolean))]
+    const list = Array.isArray(all) ? all : [];
+    const cities = [...new Set(list.map((f) => f.city).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b, 'ar'));
     const select = document.getElementById('cityFilterSelect');
     for (const city of cities) {
@@ -40,7 +76,8 @@ async function loadCityOptions() {
       opt.textContent = city;
       select.appendChild(opt);
     }
-  } catch (_) { /* فلتر المدينة اختياري — فشل تحميله لا يمنع تصفّح المرافق */ }
+    await loadTypeOptions(list);
+  } catch (_) { /* فلاتر المدينة/النوع اختيارية — فشل تحميلها لا يمنع تصفّح المرافق */ }
 }
 
 // "الأقرب مني" — GPS حقيقي بدل الاعتماد الكامل على كتابة اسم مدينة يدوياً
@@ -90,20 +127,24 @@ async function loadFacilities(q) {
   }
 
   if (!Array.isArray(facilities)) facilities = [];
-  const beforeCityFilter = facilities;
+  const beforeFilters = facilities;
   if (cityFilter) facilities = facilities.filter((f) => f.city === cityFilter);
+  if (typeFilter) facilities = facilities.filter((f) => f.type === typeFilter);
 
   if (facilities.length === 0) {
-    if (cityFilter && beforeCityFilter.length > 0) {
-      body.innerHTML = `<div class="state-box">لا مرافق في مدينة "${esc(cityFilter)}" لهذا البحث.<br>جرّب <button class="btn btn-sm btn-outline" id="clearCityFilterBtn" style="margin-top:8px;">إزالة فلتر المدينة</button></div>`;
-      document.getElementById('clearCityFilterBtn')?.addEventListener('click', () => {
+    if ((cityFilter || typeFilter) && beforeFilters.length > 0) {
+      const filterDesc = [cityFilter, typeFilter ? (FACILITY_TYPE_LABELS[typeFilter] || typeFilter) : null].filter(Boolean).join(' / ');
+      body.innerHTML = `<div class="state-box">لا مرافق مطابقة لفلتر "${esc(filterDesc)}" لهذا البحث.<br>جرّب <button class="btn btn-sm btn-outline" id="clearFiltersBtn" style="margin-top:8px;">إزالة الفلاتر</button></div>`;
+      document.getElementById('clearFiltersBtn')?.addEventListener('click', () => {
         cityFilter = '';
+        typeFilter = '';
         document.getElementById('cityFilterSelect').value = '';
+        document.getElementById('typeFilterSelect').value = '';
         loadFacilities(q);
       });
       return;
     }
-    body.innerHTML = `<div class="state-box">${q || cityFilter ? 'لا نتائج مطابقة — جرّب كلمة أقصر أو تحقّق من الإملاء.' : 'لا مرافق متاحة حالياً.'}</div>`;
+    body.innerHTML = `<div class="state-box">${q || cityFilter || typeFilter ? 'لا نتائج مطابقة — جرّب كلمة أقصر أو تحقّق من الإملاء.' : 'لا مرافق متاحة حالياً.'}</div>`;
     return;
   }
 

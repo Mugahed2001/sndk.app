@@ -499,8 +499,13 @@ const SndkAssistant = (() => {
     return FALLBACK_EMERGENCY_PHRASES.some((p) => n.includes(normalizeSimple(p)));
   }
   function handleEmergencyIntent() {
+    // لا عمود `has_emergency` في القاعدة (قرار بيانات لم يُتّخذ بعد: من
+    // يُدخل هذه العلامة ومتى تُراجَع) — الرابط القديم كان يفتح كل المرافق
+    // بلا تمييز (عيادة أسنان تظهر بجانب مستشفى فعلي). `?type=hospital`
+    // (مطبَّق في facilities.js) أدقّ إشارة متاحة الآن بلا تعديل مخطّط، ليس
+    // تأكيداً على وجود قسم طوارئ فعّال ٢٤/٧ — النص يوضّح هذا صراحةً.
     return `⚠️ إذا كانت الأعراض شديدة أو مفاجئة (ألم صدر، ضيق تنفس، فقدان وعي، نزيف حاد)، توجَّه فوراً لأقرب طوارئ أو اتصل بالإسعاف. هذا المساعد دليل حجز مواعيد فقط، ولا يقدّم تشخيصاً أو استشارة طبية.`
-      + actionsRow(linkBtn(`${sndkBasePath()}/facilities`, 'تصفّح المرافق (لأقرب طوارئ)'));
+      + actionsRow(linkBtn(`${sndkBasePath()}/facilities?type=hospital`, 'تصفّح المستشفيات (الأقرب لك)'));
   }
 
   function handleGreetingIntent() {
