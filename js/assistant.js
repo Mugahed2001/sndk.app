@@ -1,102 +1,29 @@
-// مساعد «سندك الطبي» — ذكاء اصطناعي حقيقي (Gemini خلف دالة الحافة
-// ai-assistant) مع تحوّل تلقائي **صامت** إلى بحث محلي حتمي (fallbackSearch
-// أدناه) كلما تعذّر النموذج (رصيد/حصّة منتهية، حدّ يومي، عطل مؤقت، أو
-// انقطاع اتصال) — الزائر لا يرى أبداً رسالة "تعذّر الوصول للمساعد" أو ما
-// شابهها؛ التحوّل يبدو استمراراً طبيعياً للمحادثة لا إعلان فشل. الفرق الوحيد
-// المرئي: بحث محلي يعتمد على مطابقة كلمات مباشرة (لا فهم لغة حرّ)، فرداً قد
-// يكون أقل تفصيلاً من ردّ Gemini، لكنه لا يتوقّف أبداً.
+// مساعد «سندك الطبي» — محرّك بحث محلي حتمي بالكامل، **بلا أي نموذج ذكاء
+// اصطناعي** ولا نداء خارجي لأي مزوّد نموذج: كل ردّ يُبنى من مطابقة كلمات
+// وفلترة مباشرة على بيانات حقيقية من قاعدة البيانات (لا توليد نصّ حرّ، ولا
+// تخمين). أدقّ ما يقدّمه هو استعلام الجدول الصريح — "جدول تخصص الأسنان في
+// عيديد مساءً" — الذي يُترجَم إلى فلترة حقيقية على تخصص/مدينة/فترة/يوم معاً،
+// لا بحثاً نصياً عاماً.
 //
-// حدود ما زالت قائمة بصرف النظر عن أي المحرّكين أجاب:
-// - لا بيانات دفع تمرّ من هنا إطلاقاً (مفروضة في system prompt الخادم أيضاً
-//   لا هنا فقط، ومحرّك البحث المحلي لا يطلب بيانات دفع أصلاً بالتصميم).
-// - مهلة صريحة ٢٥ ثانية على طلب Gemini قبل التحوّل للبحث المحلي — إنترنت
-//   ضعيف جداً يحصل على ردّ مفيد سريعاً بدل تعليق صامت.
+// حدود التصميم:
+// - لا بيانات دفع تمرّ من هنا إطلاقاً ولا تُطلَب في أي مرحلة.
+// - مهلة صريحة ٢٥ ثانية على كل نداء شبكة — إنترنت ضعيف جداً يحصل على ردّ
+//   مفيد سريعاً بدل تعليق صامت.
 //
 // esc/sndkOpenModal/sndkCloseModal/SNDK_ICONS من common.js.
 
 const SndkAssistant = (() => {
-  const ANON_ID_KEY = 'sndk_ai_anon_id';
   const REQUEST_TIMEOUT_MS = 25000;
-  const MAX_HISTORY = 12;
 
   let messages = []; // {role:'user'|'bot', html, typing?}
-  let apiHistory = []; // {role:'user'|'assistant', content} — نصّ خام يُرسَل للخادم
   let panelEl = null;
   let sending = false;
-
-  function uuid() {
-    if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
-    return `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}-${Math.random().toString(16).slice(2)}`;
-  }
-
-  function getAnonId() {
-    try {
-      let id = localStorage.getItem(ANON_ID_KEY);
-      if (!id) { id = uuid(); localStorage.setItem(ANON_ID_KEY, id); }
-      return id;
-    } catch (_) {
-      return uuid(); // تخزين محجوب — جلسة بلا استمرارية أفضل من تعطيل المساعد كله
-    }
-  }
 
   function withTimeout(promise) {
     return Promise.race([
       promise,
       new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), REQUEST_TIMEOUT_MS)),
     ]);
-  }
-
-  // Markdown خفيف مقصود لردّ النموذج فقط — رابطان بصيغة [اسم](رابط) وجداول
-  // (رأس + |---| + صفوف)، لا أكثر. لا يحلّل أي Markdown آخر (عناوين، تعداد
-  // نقطي...) عمداً؛ ليست حاجة النموذج هنا، وأي محلِّل أعمّ خطر تعقيد بلا
-  // فائدة. التهريب (esc) يسبق أي إدراج نصّ خام دائماً — لا استثناء.
-
-  // [الاسم](https://snadk.codeysaa.com/doctor|facility|camp/<id>) فقط — نطاق
-  // ومسارات الموقع الحقيقية حصراً (مطابق تماماً لما يفرضه system prompt
-  // الخادم)، لا أي رابط آخر قد يكتبه النموذج بالخطأ. الاسم وحده يظهر
-  // ويُنقَر، لا الرابط الخام أبداً — هذا ما طُلب صراحة.
-  const MD_LINK_RE = /\[([^\]]+)\]\(https:\/\/snadk\.codeysaa\.com\/(doctor|facility|camp)\/([a-zA-Z0-9-]+)\)/g;
-
-  function renderInline(rawText) {
-    // التهريب مرّة واحدة هنا على النصّ كاملاً قبل المطابقة — label بعد هذا
-    // مُهرَّب بالفعل، فلا يُعاد تهريبه في رد الاستبدال (تهريب مزدوج يكسر أي
-    // اسم فيه & أو علامة اقتباس: "&amp;" تصير "&amp;amp;" ظاهرة حرفياً).
-    return esc(rawText).replace(MD_LINK_RE, (_m, label, kind, id) =>
-      `<a href="${sndkBasePath()}/${kind}/${encodeURIComponent(id)}" style="color:var(--primary);font-weight:600;">${label}</a>`);
-  }
-
-  function isTableRow(line) {
-    return /^\s*\|.*\|\s*$/.test(line);
-  }
-  function isSeparatorRow(line) {
-    return isTableRow(line) && /^[\s|:-]+$/.test(line) && line.includes('-');
-  }
-  function splitTableRow(line) {
-    return line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
-  }
-
-  function renderMarkdownLite(text) {
-    const lines = (text || '').split('\n');
-    let html = '';
-    let i = 0;
-    while (i < lines.length) {
-      if (isTableRow(lines[i]) && i + 1 < lines.length && isSeparatorRow(lines[i + 1])) {
-        const header = splitTableRow(lines[i]);
-        i += 2;
-        const rows = [];
-        while (i < lines.length && isTableRow(lines[i])) { rows.push(splitTableRow(lines[i])); i++; }
-        const thCell = (c) => `<th style="padding:6px 10px;border-bottom:2px solid var(--border);text-align:start;font-size:12.5px;">${renderInline(c)}</th>`;
-        const tdCell = (c) => `<td style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:12.5px;">${renderInline(c)}</td>`;
-        html += `<div style="overflow-x:auto;margin:8px 0;"><table style="border-collapse:collapse;width:100%;">`
-          + `<tr>${header.map(thCell).join('')}</tr>`
-          + rows.map((r) => `<tr>${r.map(tdCell).join('')}</tr>`).join('')
-          + `</table></div>`;
-      } else {
-        html += renderInline(lines[i]) + (i < lines.length - 1 ? '<br>' : '');
-        i++;
-      }
-    }
-    return html;
   }
 
   function bubble(role, innerHtml) {
@@ -122,11 +49,9 @@ const SndkAssistant = (() => {
     return `<div class="row wrap gap-8 mt-8">${html}</div>`;
   }
 
-  // بحث مبسّط بلا أي ذكاء اصطناعي — يعمل دائماً بلا تكلفة API، ويُستعمَل
-  // بديلاً كلما تعذّر الوصول للمساعد الذكي (رصيد منتهٍ، حدّ يومي، أو عطل
-  // مؤقت) بدل توقّف المساعد عن أي فائدة. يغطّي نفس الفئات الأربع التي كان
-  // المحرّك الحتمي القديم يغطّيها: مستشفى/طبيب/تخصص/موعد — لا بحث نصّي عام
-  // فقط.
+  // محرّك المطابقة والتصنيف — هذا هو المساعد كلّه، لا طبقة احتياطية. يغطّي
+  // ست فئات: مستشفى/عيادة، طبيب، تخصص، جدولات مرفقٍ بعينه، جدول مواعيد عابر
+  // للمرافق (تخصص+مدينة+فترة+يوم معاً)، ومخيم طبي — لا بحثاً نصياً عاماً فقط.
   function normalizeSimple(t) {
     return (t || '')
       .replace(/[ً-ٰ]/g, '')
@@ -161,6 +86,83 @@ const SndkAssistant = (() => {
       out = out.split(` ${nw} `).join(' ');
     }
     return out.replace(/\s+/g, ' ').trim();
+  }
+
+  // ─────────────── جدول المواعيد العابر للمرافق — تخصص + مدينة + فترة + يوم ───────────────
+  //
+  // مختلفٌ عن `facility_schedules` أعلاه: ذاك يطلب اسم **مرفقٍ بعينه**
+  // ويعرض كل جدولاته. هذا لا يذكر مرفقاً أصلاً — "جدول تخصص الأسنان في
+  // عيديد مساءً" — فيفلتر عبر كل المرافق معاً على الأربعة عناصر. أي عنصر
+  // غير مذكور يبقى بلا فلترة، لا افتراض قيمة له.
+  //
+  // عبارات صريحة غير مستعملة أعلاه فقط ("جدول"/"مواعيد"/"دوام" مخصَّصة
+  // لـ`facility_schedules` مع اسم مرفق) — الإشارة الأقوى هنا هي فترة أو يوم
+  // مذكوران، لا الكلمة وحدها.
+  const FALLBACK_AGENDA_WORDS = ['جدول اعمال', 'جدول مواعيد', 'جدول العمل', 'اجندة'];
+  const FALLBACK_CITY_NOISE_WORDS = ['منطقة', 'مدينة', 'مدينه', 'بمنطقة', 'بمدينة', 'تخصص', 'لتخصص'];
+
+  // القيمة الفعلية المخزَّنة في عمود `period` (مطابقة تماماً لـ
+  // SchedulePeriod.name في تطبيق الجوال: morning/evening/fullDay).
+  const FALLBACK_PERIOD_MAP = {
+    'مساء': 'evening', 'مساءا': 'evening', 'مسائي': 'evening', 'مسائيه': 'evening', 'المسائية': 'evening',
+    'صباح': 'morning', 'صباحا': 'morning', 'صباحي': 'morning', 'صباحيه': 'morning', 'الصباحية': 'morning',
+    'طوال اليوم': 'fullDay', 'كل اليوم': 'fullDay', 'كامل اليوم': 'fullDay', 'طول اليوم': 'fullDay',
+  };
+
+  // ترتيب ScheduleDay في تطبيق الجوال بالحرف: السبت=0 ... الجمعة=6 — نفس
+  // ترتيب `working_days` كما يُخزَّن فعلياً في القاعدة.
+  const FALLBACK_DAY_LABELS = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+  const FALLBACK_DAY_MAP = Object.fromEntries(FALLBACK_DAY_LABELS.map((d, i) => [normalizeSimple(d), i]));
+  const FALLBACK_PERIOD_LABELS = { morning: 'صباحية', evening: 'مسائية', fullDay: 'طوال اليوم' };
+
+  // "صباح الخير"/"مساء الخير" تحيّتان لا طلب فترة — تُستبعدان قبل كشف الفترة
+  // فقط، لا من بقية التصنيف (تحيّة حقيقية تبقى تحيّة في مكانها الأصلي أدناه).
+  function stripGreetingPhrases(n) {
+    return n.replace(normalizeSimple('صباح الخير'), ' ').replace(normalizeSimple('مساء الخير'), ' ');
+  }
+
+  function detectPeriod(n) {
+    const scanned = stripGreetingPhrases(n);
+    for (const [word, value] of Object.entries(FALLBACK_PERIOD_MAP)) {
+      if (scanned.includes(normalizeSimple(word))) return value;
+    }
+    return null;
+  }
+
+  function detectDay(n) {
+    const scanned = stripGreetingPhrases(n);
+    for (const [word, index] of Object.entries(FALLBACK_DAY_MAP)) {
+      if (scanned.includes(word)) return index;
+    }
+    return null;
+  }
+
+  // ما تبقّى من الرسالة بعد حذف كل ما فُهم فعلاً (ضجيج، عبارات الجدول،
+  // التخصص المطابَق، الفترة، اليوم) هو استعلام المدينة الحرّ — بلا قائمة
+  // مدن ثابتة يُقارَن بها: مطابقة جزئية لاحقاً ضد مدينة المرفق الفعلية تكفي.
+  function extractCityQuery(n, matchedSpecialty) {
+    const words = [
+      ...FALLBACK_NOISE_WORDS,
+      ...FALLBACK_AGENDA_WORDS,
+      ...FALLBACK_SCHEDULE_WORDS,
+      ...FALLBACK_CITY_NOISE_WORDS,
+      ...Object.keys(FALLBACK_PERIOD_MAP),
+      ...FALLBACK_DAY_LABELS,
+    ];
+    if (matchedSpecialty) words.push(matchedSpecialty.arabic_name || matchedSpecialty.name || '');
+    return stripSimpleWords(n, words);
+  }
+
+  // working_days أولاً، وإلا day_of_week القديم (ISO: الاثنين=1 ... الأحد=7)
+  // محوَّلاً — نفس منطق `_isoDayToScheduleDayIndex` في نموذج الجدولة بتطبيق
+  // الجوال بالحرف، كي لا تُستبعد جدولاتٌ قديمة لم تُهاجَر إلى working_days.
+  function scheduleDayIndices(s) {
+    if (Array.isArray(s.working_days) && s.working_days.length) {
+      return s.working_days.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+    }
+    const iso = Number(s.day_of_week);
+    if (Number.isInteger(iso) && iso >= 1 && iso <= 7) return [iso === 7 ? 1 : iso + 1];
+    return [];
   }
 
   function arabicCount(n, singular, plural) {
@@ -275,6 +277,18 @@ const SndkAssistant = (() => {
       const name = normalizeSimple(s.arabic_name || s.name || '');
       return name.length >= 3 && n.includes(name);
     });
+
+    // جدول عابر للمرافق — "جدول تخصص الأسنان في عيديد مساءً": فترة أو يوم
+    // مذكوران، أو عبارة جدول صريحة لم تُستهلَك أعلاه (تلك تطلب اسم مرفق ولم
+    // تُطابق شيئاً). فلترة تخصص+مدينة+فترة+يوم معاً، لا بحثاً نصياً.
+    const period = detectPeriod(n);
+    const dayIndex = detectDay(n);
+    const mentionsAgenda = FALLBACK_AGENDA_WORDS.some((w) => n.includes(normalizeSimple(w)));
+    if (period || dayIndex !== null || mentionsAgenda) {
+      const cityQuery = extractCityQuery(n, matchedSpecialty);
+      return { type: 'schedule_query', matchedSpecialty, period, dayIndex, cityQuery };
+    }
+
     if (matchedSpecialty) return { type: 'search', specialties, matchedSpecialty };
 
     if (FALLBACK_BOOKING_WORDS.some((w) => n.includes(w))) return { type: 'booking_generic', specialties };
@@ -422,6 +436,70 @@ const SndkAssistant = (() => {
       + actionsRow(linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(facility.id)}`, 'فتح صفحة المرفق'));
   }
 
+  // "جدول تخصص الأسنان في عيديد مساءً" — استعلامٌ مركَّب حقيقي عابر
+  // للمرافق، لا بحث نصّي: تخصص عبر specialty_id (خادم)، ومدينة/فترة/يوم عبر
+  // فلترة محلية (الخادم لا يقبل فلترة الفترة أو اليوم). أي عنصر غير مذكور
+  // في الرسالة يبقى بلا فلترة — فتُعرض كل ما يطابق ما تحدَّد فقط.
+  async function handleScheduleQueryIntent(matchedSpecialty, period, dayIndex, cityQuery) {
+    let schedules = [];
+    try {
+      const query = matchedSpecialty ? { specialty_id: matchedSpecialty.id } : {};
+      const rows = await withTimeout(SndkApi.getData('get-clinic-schedules', { query }));
+      schedules = Array.isArray(rows) ? rows : [];
+    } catch (_) { /* استمرّ بلا نتائج */ }
+
+    const cityNorm = cityQuery ? normalizeSimple(cityQuery) : '';
+    const filtered = schedules.filter((s) => {
+      // فترة "طوال اليوم" تُلبّي أي طلب فترة — ليست استثناءً من الفلترة.
+      if (period && s.period !== period && s.period !== 'fullDay') return false;
+      const days = scheduleDayIndices(s);
+      if (dayIndex !== null && days.length && !days.includes(dayIndex)) return false;
+      if (cityNorm) {
+        const city = normalizeSimple((s.facilities && s.facilities.city) || s.city || '');
+        if (!city.includes(cityNorm)) return false;
+      }
+      return true;
+    });
+
+    const askedParts = [];
+    if (matchedSpecialty) askedParts.push(`تخصص «${esc(matchedSpecialty.arabic_name || matchedSpecialty.name)}»`);
+    if (cityQuery) askedParts.push(`في «${esc(cityQuery)}»`);
+    if (period) askedParts.push(`الفترة ${FALLBACK_PERIOD_LABELS[period]}`);
+    if (dayIndex !== null) askedParts.push(`يوم ${esc(FALLBACK_DAY_LABELS[dayIndex])}`);
+    const askedLabel = askedParts.length ? askedParts.join('، ') : 'كل الجداول المعلَنة';
+
+    if (filtered.length === 0) {
+      return `طلبك: جدول ${askedLabel} — لا مواعيد مطابقة حالياً. جرّب تضييق أقلّ (بلا مدينة أو فترة محدَّدة) أو تصفّح ${linkBtn(`${sndkBasePath()}/doctors`, 'كل الأطباء')}.`;
+    }
+
+    filtered.sort((a, b) => {
+      const ca = (a.facilities && a.facilities.city) || '';
+      const cb = (b.facilities && b.facilities.city) || '';
+      return ca.localeCompare(cb, 'ar')
+        || ((a.facilities && a.facilities.name) || '').localeCompare((b.facilities && b.facilities.name) || '', 'ar');
+    });
+
+    const LIMIT = 30;
+    const rows = filtered.slice(0, LIMIT).map((s) => {
+      const days = scheduleDayIndices(s);
+      const daysLabel = days.length ? days.map((d) => FALLBACK_DAY_LABELS[d]).join('، ') : '—';
+      const time = s.start_time && s.end_time ? `${esc(s.start_time.slice(0, 5))}–${esc(s.end_time.slice(0, 5))}` : '—';
+      return [
+        linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(s.facility_id)}`, (s.facilities && s.facilities.name) || '—'),
+        s.doctors ? linkBtn(`${sndkBasePath()}/doctor/${encodeURIComponent(s.doctor_id)}`, s.doctors.name) : esc('—'),
+        esc((s.specialties && (s.specialties.arabic_name || s.specialties.name)) || '—'),
+        esc((s.facilities && s.facilities.city) || '—'),
+        esc(daysLabel),
+        esc(FALLBACK_PERIOD_LABELS[s.period] || s.period || '—'),
+        time,
+      ];
+    });
+
+    const truncNote = filtered.length > LIMIT ? ` (تُعرض أول ${LIMIT})` : '';
+    return `طلبك: جدول ${askedLabel} — وجدت ${arabicCount(filtered.length, 'موعداً', 'مواعيد')}${truncNote}:`
+      + tableHtml(['المرفق', 'الطبيب', 'التخصص', 'المدينة', 'الأيام', 'الفترة', 'الوقت'], rows);
+  }
+
   async function handleSearchIntent(raw, matchedSpecialty, specialties) {
     let doctors = [];
     let facilities = [];
@@ -506,6 +584,7 @@ const SndkAssistant = (() => {
       case 'greeting': return handleGreetingIntent();
       case 'facility_doctors': return await handleFacilityDoctorsIntent(intent.facilityQuery);
       case 'facility_schedules': return await handleFacilitySchedulesIntent(intent.facilityQuery);
+      case 'schedule_query': return await handleScheduleQueryIntent(intent.matchedSpecialty, intent.period, intent.dayIndex, intent.cityQuery);
       case 'booking_generic': return handleBookingGenericIntent();
       default: return await handleSearchIntent(raw, intent.matchedSpecialty, intent.specialties);
     }
@@ -516,42 +595,15 @@ const SndkAssistant = (() => {
     if (!trimmed || sending) return;
     sending = true;
     pushUser(trimmed);
-    apiHistory.push({ role: 'user', content: trimmed });
     pushTyping();
 
     try {
-      const base = window.SNDK_CONFIG.SUPABASE_URL.replace(/\/+$/, '');
-      const res = await withTimeout(fetch(`${base}/functions/v1/ai-assistant`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: window.SNDK_CONFIG.SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${window.SNDK_CONFIG.SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({ anon_id: getAnonId(), messages: apiHistory.slice(-MAX_HISTORY) }),
-      }));
-      const decoded = await res.json().catch(() => null);
-      const reply = decoded && decoded.success === true && decoded.data && decoded.data.reply;
-
-      if (reply) {
-        popTyping();
-        pushBot(renderMarkdownLite(reply));
-        apiHistory.push({ role: 'assistant', content: reply });
-        return;
-      }
-
-      // فشل أو ردّ فارغ — تحوّل صامت للبحث المحلّي بلا أي رسالة عطل: يجب أن
-      // يبدو استمراراً طبيعياً للمحادثة. apiHistory لا يحمل هذا الردّ (مصدره
-      // محلّي لا نموذج) فلا يدخل سياق الرسائل القادمة للخادم.
-      apiHistory.pop();
-      const fallback = await fallbackSearch(trimmed);
+      const reply = await fallbackSearch(trimmed);
       popTyping();
-      pushBot(fallback);
-    } catch (err) {
-      apiHistory.pop();
-      const fallback = await fallbackSearch(trimmed);
+      pushBot(reply);
+    } catch (_) {
       popTyping();
-      pushBot(fallback);
+      pushBot('تعذّر إتمام البحث. جرّب صياغة أبسط لسؤالك.');
     } finally {
       sending = false;
     }
@@ -568,7 +620,7 @@ const SndkAssistant = (() => {
           <div style="font-weight:700;">مساعد سندك الطبي</div>
         </div>
         <div class="text-muted mt-8" style="font-size:12px;">
-          مدعوم بذكاء اصطناعي — اسألني عن طبيب أو مستشفى أو مخيم طبي. لا أطلب أو أحفظ أي بيانات دفع.
+          اسألني عن طبيب أو مستشفى أو تخصص أو مخيم طبي، أو اطلب جدول مواعيد بمدينة وفترة ويوم محدَّدين.
         </div>
         <div id="asstBody" class="asst-body mt-16"></div>
         <div class="row gap-8 mt-12">
