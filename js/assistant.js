@@ -231,7 +231,9 @@ const SndkAssistant = (() => {
     const doctors = distinctDoctorsFromSchedules(schedules);
 
     const type = f.type ? (FACILITY_TYPE_LABELS[f.type] || f.type) : '';
-    const location = [f.city, f.governorate].filter(Boolean).join('، ');
+    // المدينة والمحافظة أولاً، ثم المنطقة، ثم المعلم القريب — من الأعمّ إلى
+    // الأدقّ، كما يُذكر مكان فعلياً لا يُوصف بالإحداثيات.
+    const location = [f.city, f.governorate, f.district].filter(Boolean).join('، ');
     const phones = f.phones && f.phones.length ? f.phones : (f.phone ? [f.phone] : []);
     const whatsapps = f.whatsapps && f.whatsapps.length ? f.whatsapps : (f.whatsapp ? [f.whatsapp] : []);
     const contactParts = [];
@@ -243,6 +245,7 @@ const SndkAssistant = (() => {
 
     const sentences = [];
     sentences.push(`${esc(f.name)}${type ? ` — ${esc(type)}` : ''}${location ? ` في ${esc(location)}` : ''}.`);
+    if (f.nearby_landmark) sentences.push(`قريب من: ${esc(f.nearby_landmark)}.`);
     sentences.push(`لديه ${arabicCount(doctors.length, 'طبيب', 'أطباء')}، و${arabicCount(schedules.length, 'موعد', 'مواعيد')} معلَنة.`);
     if (doctors.length) sentences.push(`الأطباء: ${doctors.slice(0, 10).map((d) => esc(d.name)).join('، ')}${doctors.length > 10 ? ' وغيرهم' : ''}.`);
     sentences.push(contactParts.length ? `للتواصل: ${contactParts.join('، ')}.` : 'لا وسيلة تواصل مباشرة مسجَّلة.');
@@ -449,6 +452,15 @@ const SndkAssistant = (() => {
     return parts.length ? parts.join('، ') : 'كل الجداول المعلَنة';
   }
 
+  // "عيديد" فشلت كمدينة — لكن زائراً كثيراً ما يذكر منطقته أو معلماً قريباً
+  // منه لا اسم مدينته حرفياً ("قرب جامعة حضرموت" مثلاً). المرفق يحمل هذا
+  // فعلاً (`district`/`nearby_landmark`)، فمطابقة "المدينة" هنا تفحص الثلاثة
+  // معاً — أوسع من city وحدها، لا فلتراً إضافياً منفصلاً.
+  function facilityLocationText(f) {
+    if (!f) return '';
+    return normalizeSimple([f.city, f.district, f.nearby_landmark].filter(Boolean).join(' '));
+  }
+
   function filterSchedules(schedules, cityQuery, period, dayIndex) {
     const cityNorm = cityQuery ? normalizeSimple(cityQuery) : '';
     return schedules.filter((s) => {
@@ -457,8 +469,8 @@ const SndkAssistant = (() => {
       const days = scheduleDayIndices(s);
       if (dayIndex !== null && days.length && !days.includes(dayIndex)) return false;
       if (cityNorm) {
-        const city = normalizeSimple((s.facilities && s.facilities.city) || s.city || '');
-        if (!city.includes(cityNorm)) return false;
+        const location = facilityLocationText(s.facilities) || normalizeSimple(s.city || '');
+        if (!location.includes(cityNorm)) return false;
       }
       return true;
     });
@@ -476,11 +488,16 @@ const SndkAssistant = (() => {
       const days = scheduleDayIndices(s);
       const daysLabel = days.length ? days.map((d) => FALLBACK_DAY_LABELS[d]).join('، ') : '—';
       const time = s.start_time && s.end_time ? `${esc(s.start_time.slice(0, 5))}–${esc(s.end_time.slice(0, 5))}` : '—';
+      // المدينة وحدها لا تقول لماذا طابق الصفّ طلباً بمنطقة أو معلم قريب —
+      // المنطقة/المعلم يظهران بجانبها حين يتوفّران، لا استبدالاً لها.
+      const f = s.facilities;
+      const locationParts = [f && f.city, f && f.district, f && f.nearby_landmark].filter(Boolean);
+      const locationLabel = locationParts.length ? locationParts.join(' — ') : '—';
       return [
         linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(s.facility_id)}`, (s.facilities && s.facilities.name) || '—'),
         s.doctors ? linkBtn(`${sndkBasePath()}/doctor/${encodeURIComponent(s.doctor_id)}`, s.doctors.name) : esc('—'),
         esc((s.specialties && (s.specialties.arabic_name || s.specialties.name)) || '—'),
-        esc((s.facilities && s.facilities.city) || '—'),
+        esc(locationLabel),
         esc(daysLabel),
         esc(FALLBACK_PERIOD_LABELS[s.period] || s.period || '—'),
         time,
@@ -533,7 +550,7 @@ const SndkAssistant = (() => {
         ? ` لا نتائج مطابقة تماماً لـ${attempt.relaxed.join(' و')} — إليك أقرب نتائج حقيقية بتخفيف ذلك:`
         : ' وجدت';
       return `طلبك: جدول ${askedLabel} —${relaxNote} ${arabicCount(filtered.length, 'موعداً', 'مواعيد')}${truncNote}:`
-        + tableHtml(['المرفق', 'الطبيب', 'التخصص', 'المدينة', 'الأيام', 'الفترة', 'الوقت'], rows);
+        + tableHtml(['المرفق', 'الطبيب', 'التخصص', 'الموقع', 'الأيام', 'الفترة', 'الوقت'], rows);
     }
 
     const askedLabel = scheduleAskedLabel(matchedSpecialty, cityQuery, period, dayIndex);
@@ -607,7 +624,7 @@ const SndkAssistant = (() => {
       html += tableHtml(['المرفق', 'النوع', 'الموقع', 'حجز إلكتروني'], facilities.map((f) => [
         linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(f.id)}`, f.name),
         esc(f.type ? (FACILITY_TYPE_LABELS[f.type] || f.type) : '—'),
-        esc([f.city, f.governorate].filter(Boolean).join('، ') || '—'),
+        esc([f.city, f.district, f.nearby_landmark].filter(Boolean).join('، ') || '—'),
         bookingIds && bookingIds.has(f.id) ? 'متاح' : 'غير متاح',
       ]));
       buttons.push(...facilities.map((f) => linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(f.id)}`, f.name)));
