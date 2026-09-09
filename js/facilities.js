@@ -121,15 +121,24 @@ async function loadFacilities(q) {
   const body = document.getElementById('facilitiesBody');
   body.innerHTML = '<div class="skeleton" style="height:120px;"></div><div class="skeleton" style="height:120px;"></div>';
 
+  // `type`/`city` تُرسَلان الآن كفلترة حقيقية من القاعدة (get-facilities)،
+  // لا فلترةً محلية بعد جلب أوّل ٦٠ صفاً أبجدياً فقط — ذاك كان يُخفي مرافق
+  // مطابقة فعلاً لمجرّد أن اسمها يقع أبجدياً بعد الستّين الأولى ("مستشفى
+  // بضة" كانت تختفي من فلتر "مستشفى" لهذا السبب بالضبط، رُصد حيّاً). أي
+  // زيادة لاحقة في `limit` الافتراضي تبقى صحيحة تلقائياً لأن الفلترة صارت
+  // من مصدر الحقيقة (القاعدة) لا من شريحة عميلة محدودة.
   let facilities = [];
   try {
+    const baseQuery = { limit: 60 };
+    if (typeFilter) baseQuery.type = typeFilter;
+    if (cityFilter) baseQuery.city = cityFilter;
     if (q) {
       for (const variant of spellingVariants(q)) {
-        facilities = await SndkApi.getData('get-facilities', { query: { q: variant, limit: 60 } });
+        facilities = await SndkApi.getData('get-facilities', { query: { ...baseQuery, q: variant } });
         if (Array.isArray(facilities) && facilities.length) break;
       }
     } else {
-      facilities = await SndkApi.getData('get-facilities', { query: { limit: 60 } });
+      facilities = await SndkApi.getData('get-facilities', { query: baseQuery });
     }
   } catch (err) {
     body.innerHTML = `<div class="state-box">تعذّر تحميل المرافق.<br>${esc(err.message)}</div>`;
@@ -137,12 +146,9 @@ async function loadFacilities(q) {
   }
 
   if (!Array.isArray(facilities)) facilities = [];
-  const beforeFilters = facilities;
-  if (cityFilter) facilities = facilities.filter((f) => f.city === cityFilter);
-  if (typeFilter) facilities = facilities.filter((f) => f.type === typeFilter);
 
   if (facilities.length === 0) {
-    if ((cityFilter || typeFilter) && beforeFilters.length > 0) {
+    if (cityFilter || typeFilter) {
       const filterDesc = [cityFilter, typeFilter ? (FACILITY_TYPE_LABELS[typeFilter] || typeFilter) : null].filter(Boolean).join(' / ');
       body.innerHTML = `<div class="state-box">لا مرافق مطابقة لفلتر "${esc(filterDesc)}" لهذا البحث.<br>جرّب <button class="btn btn-sm btn-outline" id="clearFiltersBtn" style="margin-top:8px;">إزالة الفلاتر</button></div>`;
       document.getElementById('clearFiltersBtn')?.addEventListener('click', () => {
@@ -154,7 +160,7 @@ async function loadFacilities(q) {
       });
       return;
     }
-    body.innerHTML = `<div class="state-box">${q || cityFilter || typeFilter ? 'لا نتائج مطابقة — جرّب كلمة أقصر أو تحقّق من الإملاء.' : 'لا مرافق متاحة حالياً.'}</div>`;
+    body.innerHTML = `<div class="state-box">${q ? 'لا نتائج مطابقة — جرّب كلمة أقصر أو تحقّق من الإملاء.' : 'لا مرافق متاحة حالياً.'}</div>`;
     return;
   }
 
