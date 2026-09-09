@@ -440,16 +440,18 @@ const SndkAssistant = (() => {
   // للمرافق، لا بحث نصّي: تخصص عبر specialty_id (خادم)، ومدينة/فترة/يوم عبر
   // فلترة محلية (الخادم لا يقبل فلترة الفترة أو اليوم). أي عنصر غير مذكور
   // في الرسالة يبقى بلا فلترة — فتُعرض كل ما يطابق ما تحدَّد فقط.
-  async function handleScheduleQueryIntent(matchedSpecialty, period, dayIndex, cityQuery) {
-    let schedules = [];
-    try {
-      const query = matchedSpecialty ? { specialty_id: matchedSpecialty.id } : {};
-      const rows = await withTimeout(SndkApi.getData('get-clinic-schedules', { query }));
-      schedules = Array.isArray(rows) ? rows : [];
-    } catch (_) { /* استمرّ بلا نتائج */ }
+  function scheduleAskedLabel(matchedSpecialty, cityQuery, period, dayIndex) {
+    const parts = [];
+    if (matchedSpecialty) parts.push(`تخصص «${esc(matchedSpecialty.arabic_name || matchedSpecialty.name)}»`);
+    if (cityQuery) parts.push(`في «${esc(cityQuery)}»`);
+    if (period) parts.push(`الفترة ${FALLBACK_PERIOD_LABELS[period]}`);
+    if (dayIndex !== null) parts.push(`يوم ${esc(FALLBACK_DAY_LABELS[dayIndex])}`);
+    return parts.length ? parts.join('، ') : 'كل الجداول المعلَنة';
+  }
 
+  function filterSchedules(schedules, cityQuery, period, dayIndex) {
     const cityNorm = cityQuery ? normalizeSimple(cityQuery) : '';
-    const filtered = schedules.filter((s) => {
+    return schedules.filter((s) => {
       // فترة "طوال اليوم" تُلبّي أي طلب فترة — ليست استثناءً من الفلترة.
       if (period && s.period !== period && s.period !== 'fullDay') return false;
       const days = scheduleDayIndices(s);
@@ -460,25 +462,15 @@ const SndkAssistant = (() => {
       }
       return true;
     });
+  }
 
-    const askedParts = [];
-    if (matchedSpecialty) askedParts.push(`تخصص «${esc(matchedSpecialty.arabic_name || matchedSpecialty.name)}»`);
-    if (cityQuery) askedParts.push(`في «${esc(cityQuery)}»`);
-    if (period) askedParts.push(`الفترة ${FALLBACK_PERIOD_LABELS[period]}`);
-    if (dayIndex !== null) askedParts.push(`يوم ${esc(FALLBACK_DAY_LABELS[dayIndex])}`);
-    const askedLabel = askedParts.length ? askedParts.join('، ') : 'كل الجداول المعلَنة';
-
-    if (filtered.length === 0) {
-      return `طلبك: جدول ${askedLabel} — لا مواعيد مطابقة حالياً. جرّب تضييق أقلّ (بلا مدينة أو فترة محدَّدة) أو تصفّح ${linkBtn(`${sndkBasePath()}/doctors`, 'كل الأطباء')}.`;
-    }
-
+  function scheduleRowsTable(filtered) {
     filtered.sort((a, b) => {
       const ca = (a.facilities && a.facilities.city) || '';
       const cb = (b.facilities && b.facilities.city) || '';
       return ca.localeCompare(cb, 'ar')
         || ((a.facilities && a.facilities.name) || '').localeCompare((b.facilities && b.facilities.name) || '', 'ar');
     });
-
     const LIMIT = 30;
     const rows = filtered.slice(0, LIMIT).map((s) => {
       const days = scheduleDayIndices(s);
@@ -494,10 +486,61 @@ const SndkAssistant = (() => {
         time,
       ];
     });
-
     const truncNote = filtered.length > LIMIT ? ` (تُعرض أول ${LIMIT})` : '';
-    return `طلبك: جدول ${askedLabel} — وجدت ${arabicCount(filtered.length, 'موعداً', 'مواعيد')}${truncNote}:`
-      + tableHtml(['المرفق', 'الطبيب', 'التخصص', 'المدينة', 'الأيام', 'الفترة', 'الوقت'], rows);
+    return { rows, truncNote };
+  }
+
+  // لا مواعيد مطابقة للفلترة الكاملة لا يعني «لا بيانات» — قد تكون المدينة
+  // المذكورة غير موجودة أصلاً، أو لا مواعيد مسائية تحديداً في هذا التخصص.
+  // بدل جملة تعذّر جافّة (شكوى فعلية: "أريد بيانات وليس تعذراً")، تُخفَّف
+  // الفلترة تدريجياً — المدينة أولاً (أكثرها تحديداً وأكثرها عرضة للخطأ
+  // الإملائي)، ثم اليوم، ثم الفترة — وتُعرض أوسع نتيجة حقيقية موجودة فعلاً،
+  // مع قول أي عنصر أُسقط صراحة. لا نتائج مطلقاً على التخصص وحده هي الحالة
+  // الوحيدة التي تستحق فعلاً رسالة «لا بيانات».
+  async function handleScheduleQueryIntent(matchedSpecialty, period, dayIndex, cityQuery) {
+    let schedules = [];
+    try {
+      const query = matchedSpecialty ? { specialty_id: matchedSpecialty.id } : {};
+      const rows = await withTimeout(SndkApi.getData('get-clinic-schedules', { query }));
+      schedules = Array.isArray(rows) ? rows : [];
+    } catch (_) { /* استمرّ بلا نتائج */ }
+
+    // كل خطوة تُسقط عنصراً واحداً إضافياً عن سابقتها — المدينة أولاً (أكثر
+    // عرضة للخطأ الإملائي)، ثم اليوم، ثم الفترة — و`relaxed` تتراكم بما
+    // أُسقط فعلاً حتى هذه الخطوة، لا خطوتها وحدها.
+    const attempts = [{ city: cityQuery, period, day: dayIndex, relaxed: [] }];
+    const dropped = [];
+    if (cityQuery) {
+      dropped.push(`المدينة «${esc(cityQuery)}»`);
+      attempts.push({ city: '', period, day: dayIndex, relaxed: [...dropped] });
+    }
+    if (dayIndex !== null) {
+      dropped.push(`يوم ${esc(FALLBACK_DAY_LABELS[dayIndex])}`);
+      attempts.push({ city: '', period, day: null, relaxed: [...dropped] });
+    }
+    if (period) {
+      dropped.push(`الفترة ${FALLBACK_PERIOD_LABELS[period]}`);
+      attempts.push({ city: '', period: null, day: null, relaxed: [...dropped] });
+    }
+
+    for (const attempt of attempts) {
+      const filtered = filterSchedules(schedules, attempt.city, attempt.period, attempt.day);
+      if (filtered.length === 0) continue;
+
+      const askedLabel = scheduleAskedLabel(matchedSpecialty, cityQuery, period, dayIndex);
+      const { rows, truncNote } = scheduleRowsTable(filtered);
+      const relaxNote = attempt.relaxed.length
+        ? ` لا نتائج مطابقة تماماً لـ${attempt.relaxed.join(' و')} — إليك أقرب نتائج حقيقية بتخفيف ذلك:`
+        : ' وجدت';
+      return `طلبك: جدول ${askedLabel} —${relaxNote} ${arabicCount(filtered.length, 'موعداً', 'مواعيد')}${truncNote}:`
+        + tableHtml(['المرفق', 'الطبيب', 'التخصص', 'المدينة', 'الأيام', 'الفترة', 'الوقت'], rows);
+    }
+
+    const askedLabel = scheduleAskedLabel(matchedSpecialty, cityQuery, period, dayIndex);
+    if (matchedSpecialty) {
+      return `طلبك: جدول ${askedLabel} — لا مواعيد معلَنة إطلاقاً لهذا التخصص حالياً في أي مدينة. تصفّح ${linkBtn(`${sndkBasePath()}/doctors`, 'كل الأطباء')}.`;
+    }
+    return `طلبك: جدول ${askedLabel} — لا مواعيد معلَنة حالياً. تصفّح ${linkBtn(`${sndkBasePath()}/doctors`, 'كل الأطباء')} أو ${linkBtn(`${sndkBasePath()}/facilities`, 'المرافق')}.`;
   }
 
   async function handleSearchIntent(raw, matchedSpecialty, specialties) {
