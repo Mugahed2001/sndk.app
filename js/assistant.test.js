@@ -33,7 +33,7 @@ function stripNoiseWordsKeepOriginal(text, words) {
 
 const FALLBACK_NOISE_WORDS = ['اريد', 'ابحث عن', 'ابغى', 'ابي', 'من فضلك', 'ابحث', 'عن', 'في', 'لي', 'هل يوجد', 'هل', 'يوجد', 'ما هو', 'ما هي', 'يمكن', 'يمكنني', 'الذي', 'التي', 'بها', 'به', 'لماذا', 'ليش', 'كيف', 'متى', 'غير موجود', 'غير موجوده', 'غير', 'موجود', 'موجوده'];
 const FALLBACK_SCHEDULE_WORDS = ['موعد', 'مواعيد', 'جدول', 'جداول', 'دوام', 'اوقات', 'اوقات العمل', 'ايام العمل'];
-const FALLBACK_DOCTOR_WORDS = ['طبيب', 'أطباء', 'اطباء', 'دكتور', 'دكاترة'];
+const FALLBACK_DOCTOR_WORDS = ['طبيب', 'أطباء', 'اطباء', 'دكتور', 'دكاترة', 'طيب', 'اطبا', 'دختر', 'حكيم'];
 const FALLBACK_DOCTOR_TITLE_WORDS = ['د', 'د.'];
 const FALLBACK_FACILITY_WORDS = ['مستشفى', 'مستشفيات', 'عيادة', 'عيادات', 'مركز طبي', 'مراكز', 'مرفق', 'مرافق', 'مستوصف'];
 const FALLBACK_BOOKING_WORDS = ['موعد', 'مواعيد', 'حجز', 'احجز'];
@@ -130,10 +130,21 @@ function detectFaqTopic(n) {
   return null;
 }
 
+const FALLBACK_EMERGENCY_PHRASES = [
+  'الم شديد في الصدر', 'الم في الصدر', 'الم صدر', 'ضيق تنفس', 'ضيق في التنفس',
+  'صعوبة في التنفس', 'اختناق', 'فقدان وعي', 'اغماء', 'نزيف حاد', 'نزيف شديد',
+  'تسمم', 'حروق شديدة', 'حرق شديد', 'سكتة قلبية', 'جلطة', 'توقف تنفس',
+  'ازرقاق', 'تشنجات',
+];
+function detectEmergency(n) {
+  return FALLBACK_EMERGENCY_PHRASES.some((p) => n.includes(normalizeSimple(p)));
+}
+
 // نسخة مبسَّطة من classifyFallbackRequest تكفي لاختبار قرار التصنيف (لا
 // الاستدعاءات الشبكية بعده) — camp/report/greeting غير مُختبَرة هنا عمداً،
 // كلمات ثابتة بلا منطق يستحق اختباراً آلياً.
 function classify(n, specialties) {
+  if (detectEmergency(n)) return { type: 'emergency' };
   if (detectFaqTopic(n)) return { type: 'faq' };
 
   const mentionsDoctorTitle = n.split(' ').some((w) => w === 'د' || w === 'د.');
@@ -270,6 +281,28 @@ check('مسافة تحرير حرف واحد', levenshtein('الاصله', 'ال
   check('fuzzyBestMatch يجد أقرب اسم رغم الخطأ الإملائي', m && m.name, 'عيادة الاصيلة');
 }
 check('fuzzyBestMatch لا يطابق شيئاً بعيداً كلياً', fuzzyBestMatch('شيء عشوائي تماماً', [{ name: 'عيادة الاصيلة' }], (x) => x.name), null);
+
+// ─────────────────────────── Sprint 4 (تقييم مستخدم حيّ) ───────────────────────────
+
+// PBI-9: "طيب" عامية بمعنى طبيب — لا تُحسَب جزءاً من اسم المدينة
+{
+  const r = classify(normalizeSimple('طيب عظام في المكلا'), [{ arabic_name: 'العظام' }]);
+  check('"طيب عظام في المكلا" ⇒ schedule_query', r.type, 'schedule_query');
+  check('المدينة = المكلا لا "طيب المكلا"', r.cityQuery, 'المكلا');
+}
+{
+  const r = classify(normalizeSimple('ابي طيب اسنان'), [{ arabic_name: 'الاسنان' }]);
+  check('"طيب" بلا مدينة ⇒ search عادي', r.type, 'search');
+}
+
+// PBI-10: كشف الطوارئ يسبق كل تصنيف آخر
+check(
+  'ألم صدر + ضيق تنفس ⇒ emergency',
+  classify(normalizeSimple('عندي الم شديد في الصدر وضيق تنفس، ويش اسوي؟'), []).type,
+  'emergency',
+);
+check('شكوى عادية لا تُصنَّف طوارئ', detectEmergency(normalizeSimple('عندي صداع بسيط')), false);
+check('"موعد" وحدها لا تُخطَف كطوارئ', detectEmergency(normalizeSimple('اريد موعد دكتور')), false);
 
 if (failures > 0) {
   console.error(`\n${failures} اختباراً فشل.`);

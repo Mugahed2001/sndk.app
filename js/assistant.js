@@ -73,7 +73,10 @@ const SndkAssistant = (() => {
   // كلمات تدلّ على طلب «جدول/دوام مرفق» تحديداً (لا حجز عامّ). مع كلمة مرفق
   // وبلا كلمة طبيب ⇒ نعرض كل جدولات ذلك المرفق (لا الأطباء فقط).
   const FALLBACK_SCHEDULE_WORDS = ['موعد', 'مواعيد', 'جدول', 'جداول', 'دوام', 'اوقات', 'اوقات العمل', 'ايام العمل'];
-  const FALLBACK_DOCTOR_WORDS = ['طبيب', 'أطباء', 'اطباء', 'دكتور', 'دكاترة'];
+  // "طيب" عامية حضرمية/يمنية شائعة جداً بمعنى طبيب ("أبي طيب أسنان"). بلا
+  // تغطيتها كانت تُحسَب جزءاً من اسم المدينة نفسه ("طيب المكلا" بدل
+  // "المكلا") فيفشل استخراج الموقع بالكامل — رُصد فعلاً بتقييم مستخدم حيّ.
+  const FALLBACK_DOCTOR_WORDS = ['طبيب', 'أطباء', 'اطباء', 'دكتور', 'دكاترة', 'طيب', 'اطبا', 'دختر', 'حكيم'];
   // "د."/"د" — تُستعمَل للحذف فقط (word-boundary عبر stripSimpleWords)، لا
   // للكشف عبر includes كبقية FALLBACK_DOCTOR_WORDS — حرفٌ واحد كسلسلة فرعية
   // يطابق كل نص تقريباً.
@@ -328,8 +331,14 @@ const SndkAssistant = (() => {
   // يحدَّد نوع الطلب أولاً بوضوح صريح (لا تخمين مبعثر داخل جسم دالة واحدة
   // ضخمة) قبل أي استعلام — كل نوع له مُعالِج مستقل أدناه.
   async function classifyFallbackRequest(n) {
-    // أعلى أولوية: سؤالٌ إجرائي عن الموقع نفسه لا بحثاً عن بيانات — يُفحص
-    // قبل أي تصنيف آخر كي لا "كيف أحجز؟" (تحوي "حجز") تُخطَف كطلب حجز عام.
+    // **أعلى أولوية مطلقة، قبل كل شيء آخر بلا استثناء.** أعراضٌ قد تدلّ على
+    // حالة طارئة تستحق توجيهاً فورياً — لا بحثاً عادياً ينتهي بـ"لا نتائج
+    // مطابقة" لشخصٍ قد يكون في خطر فعلي. رُصد هذا الغياب بتقييم مستخدم حيّ.
+    if (detectEmergency(n)) return { type: 'emergency' };
+
+    // ثاني أعلى أولوية: سؤالٌ إجرائي عن الموقع نفسه لا بحثاً عن بيانات —
+    // يُفحص قبل أي تصنيف آخر كي لا "كيف أحجز؟" (تحوي "حجز") تُخطَف كطلب
+    // حجز عام.
     const faqTopic = detectFaqTopic(n);
     if (faqTopic) return { type: 'faq', faqTopic };
 
@@ -475,6 +484,23 @@ const SndkAssistant = (() => {
       if (topic.phrases.some((p) => n.includes(normalizeSimple(p)))) return topic;
     }
     return null;
+  }
+
+  // كشف أعراض قد تدلّ على حالة طارئة — قائمةٌ محدودة عمداً بعبارات واضحة
+  // الخطورة فقط، لا كلمات عامة ("ألم" وحدها مثلاً) قد تصف شكوى بسيطة
+  // فتُخيف مستخدماً لا يحتاج ذلك. المساعد **لا يشخّص** — يوجّه فقط.
+  const FALLBACK_EMERGENCY_PHRASES = [
+    'الم شديد في الصدر', 'الم في الصدر', 'الم صدر', 'ضيق تنفس', 'ضيق في التنفس',
+    'صعوبة في التنفس', 'اختناق', 'فقدان وعي', 'اغماء', 'نزيف حاد', 'نزيف شديد',
+    'تسمم', 'حروق شديدة', 'حرق شديد', 'سكتة قلبية', 'جلطة', 'توقف تنفس',
+    'ازرقاق', 'تشنجات',
+  ];
+  function detectEmergency(n) {
+    return FALLBACK_EMERGENCY_PHRASES.some((p) => n.includes(normalizeSimple(p)));
+  }
+  function handleEmergencyIntent() {
+    return `⚠️ إذا كانت الأعراض شديدة أو مفاجئة (ألم صدر، ضيق تنفس، فقدان وعي، نزيف حاد)، توجَّه فوراً لأقرب طوارئ أو اتصل بالإسعاف. هذا المساعد دليل حجز مواعيد فقط، ولا يقدّم تشخيصاً أو استشارة طبية.`
+      + actionsRow(linkBtn(`${sndkBasePath()}/facilities`, 'تصفّح المرافق (لأقرب طوارئ)'));
   }
 
   function handleGreetingIntent() {
@@ -776,35 +802,55 @@ const SndkAssistant = (() => {
     });
   }
 
+  // `includeCity` يُطفَأ فقط حين طُبعت المدينة أصلاً كعنوان فرعٍ فوق الجدول
+  // (تجميع متعدّد المدن) — تكرارها في كل صفّ تحته زائدٌ حينها لا مفيد.
+  function scheduleRow(s, includeCity) {
+    const days = scheduleDayIndices(s);
+    const daysLabel = days.length ? days.map((d) => FALLBACK_DAY_LABELS[d]).join('، ') : '—';
+    const time = s.start_time && s.end_time ? `${esc(s.start_time.slice(0, 5))}–${esc(s.end_time.slice(0, 5))}` : '—';
+    // المدينة وحدها لا تقول لماذا طابق الصفّ طلباً بمنطقة أو معلم قريب —
+    // المنطقة/المعلم يظهران بجانبها حين يتوفّران، لا استبدالاً لها.
+    const f = s.facilities;
+    const locationParts = [includeCity && f && f.city, f && f.district, f && f.directorate, f && f.nearby_landmark].filter(Boolean);
+    const locationLabel = locationParts.length ? locationParts.join(' — ') : '—';
+    return [
+      linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(s.facility_id)}`, (s.facilities && s.facilities.name) || '—'),
+      s.doctors ? linkBtn(`${sndkBasePath()}/doctor/${encodeURIComponent(s.doctor_id)}`, s.doctors.name) : esc('—'),
+      esc((s.specialties && (s.specialties.arabic_name || s.specialties.name)) || '—'),
+      esc(locationLabel),
+      esc(daysLabel),
+      esc(FALLBACK_PERIOD_LABELS[s.period] || s.period || '—'),
+      time,
+    ];
+  }
+
+  // نتيجة عبر عدّة مدن (٤٠ صفّاً من الشحر والقطن والمكلا وتريم معاً — حالة
+  // حقيقية رُصدت باختبار مستخدم) كانت جدولاً واحداً طويلاً مرهقاً للفحص من
+  // الهاتف. أكثر من مدينة ⇒ عناوين فرعية بأسماء المدن، كل مدينة جدولها
+  // الخاص — مدينة واحدة تبقى جدولاً واحداً بلا عنوان زائد لا داعي له.
   function scheduleRowsTable(filtered) {
-    filtered.sort((a, b) => {
-      const ca = (a.facilities && a.facilities.city) || '';
-      const cb = (b.facilities && b.facilities.city) || '';
-      return ca.localeCompare(cb, 'ar')
-        || ((a.facilities && a.facilities.name) || '').localeCompare((b.facilities && b.facilities.name) || '', 'ar');
-    });
     const LIMIT = 30;
-    const rows = filtered.slice(0, LIMIT).map((s) => {
-      const days = scheduleDayIndices(s);
-      const daysLabel = days.length ? days.map((d) => FALLBACK_DAY_LABELS[d]).join('، ') : '—';
-      const time = s.start_time && s.end_time ? `${esc(s.start_time.slice(0, 5))}–${esc(s.end_time.slice(0, 5))}` : '—';
-      // المدينة وحدها لا تقول لماذا طابق الصفّ طلباً بمنطقة أو معلم قريب —
-      // المنطقة/المعلم يظهران بجانبها حين يتوفّران، لا استبدالاً لها.
-      const f = s.facilities;
-      const locationParts = [f && f.city, f && f.district, f && f.directorate, f && f.nearby_landmark].filter(Boolean);
-      const locationLabel = locationParts.length ? locationParts.join(' — ') : '—';
-      return [
-        linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(s.facility_id)}`, (s.facilities && s.facilities.name) || '—'),
-        s.doctors ? linkBtn(`${sndkBasePath()}/doctor/${encodeURIComponent(s.doctor_id)}`, s.doctors.name) : esc('—'),
-        esc((s.specialties && (s.specialties.arabic_name || s.specialties.name)) || '—'),
-        esc(locationLabel),
-        esc(daysLabel),
-        esc(FALLBACK_PERIOD_LABELS[s.period] || s.period || '—'),
-        time,
-      ];
-    });
+    const limited = filtered.slice(0, LIMIT);
     const truncNote = filtered.length > LIMIT ? ` (تُعرض أول ${LIMIT})` : '';
-    return { rows, truncNote };
+    const headers = ['المرفق', 'الطبيب', 'التخصص', 'الموقع', 'الأيام', 'الفترة', 'الوقت'];
+
+    const cityOf = (s) => (s.facilities && s.facilities.city) || 'غير محدَّدة المدينة';
+    const cities = [...new Set(limited.map(cityOf))].sort((a, b) => a.localeCompare(b, 'ar'));
+
+    if (cities.length <= 1) {
+      limited.sort((a, b) => ((a.facilities && a.facilities.name) || '').localeCompare((b.facilities && b.facilities.name) || '', 'ar'));
+      return { html: tableHtml(headers, limited.map((s) => scheduleRow(s, true))), truncNote };
+    }
+
+    let html = '';
+    for (const city of cities) {
+      const cityRows = limited
+        .filter((s) => cityOf(s) === city)
+        .sort((a, b) => ((a.facilities && a.facilities.name) || '').localeCompare((b.facilities && b.facilities.name) || '', 'ar'));
+      html += `<div style="font-weight:700;margin:10px 0 4px;font-size:13px;">${esc(city)}</div>`
+        + tableHtml(headers, cityRows.map((s) => scheduleRow(s, false)));
+    }
+    return { html, truncNote };
   }
 
   // لا مواعيد مطابقة للفلترة الكاملة لا يعني «لا بيانات» — قد تكون المدينة
@@ -828,7 +874,7 @@ const SndkAssistant = (() => {
     const attempts = [{ city: cityQuery, period, day: dayIndex, relaxed: [] }];
     const dropped = [];
     if (cityQuery) {
-      dropped.push(`المدينة «${esc(cityQuery)}»`);
+      dropped.push(`«${esc(cityQuery)}»`);
       attempts.push({ city: '', period, day: dayIndex, relaxed: [...dropped] });
     }
     if (dayIndex !== null) {
@@ -845,12 +891,14 @@ const SndkAssistant = (() => {
       if (filtered.length === 0) continue;
 
       const askedLabel = scheduleAskedLabel(matchedSpecialty, cityQuery, period, dayIndex);
-      const { rows, truncNote } = scheduleRowsTable(filtered);
+      const { html: tableHtmlOut, truncNote } = scheduleRowsTable(filtered);
+      // صياغة مباشرة بلا أسماء حقول داخلية ("المدينة"، "الفترة" كحقل) —
+      // شكوى فعلية من اختبار مستخدم: الرسالة كانت أقرب لسجلّ تقني منها لكلام.
       const relaxNote = attempt.relaxed.length
-        ? ` لا نتائج مطابقة تماماً لـ${attempt.relaxed.join(' و')} — إليك أقرب نتائج حقيقية بتخفيف ذلك:`
+        ? ` لم أجد نتائج تطابق ${attempt.relaxed.join(' و')} بالضبط، فهذه أقرب مواعيد متوفّرة فعلاً —`
         : ' وجدت';
       return `طلبك: جدول ${askedLabel} —${relaxNote} ${arabicCount(filtered.length, 'موعداً', 'مواعيد')}${truncNote}:`
-        + tableHtml(['المرفق', 'الطبيب', 'التخصص', 'الموقع', 'الأيام', 'الفترة', 'الوقت'], rows);
+        + tableHtmlOut;
     }
 
     const askedLabel = scheduleAskedLabel(matchedSpecialty, cityQuery, period, dayIndex);
@@ -993,6 +1041,7 @@ const SndkAssistant = (() => {
       case 'facility_schedules': return await handleFacilitySchedulesIntent(intent.facilityQuery);
       case 'doctor_schedules': return await handleDoctorSchedulesIntent(intent.doctorQuery);
       case 'faq': return intent.faqTopic.answer();
+      case 'emergency': return handleEmergencyIntent();
       case 'schedule_query': return await handleScheduleQueryIntent(intent.matchedSpecialty, intent.period, intent.dayIndex, intent.cityQuery);
       case 'booking_generic': return handleBookingGenericIntent();
       default: return await handleSearchIntent(raw, intent.matchedSpecialty, intent.specialties);
@@ -1030,6 +1079,7 @@ const SndkAssistant = (() => {
         </div>
         <div class="text-muted mt-8" style="font-size:12px;">
           اسألني عن طبيب أو مستشفى أو تخصص أو مخيم طبي، أو اطلب جدول مواعيد بمدينة وفترة ويوم محدَّدين، أو مواعيد طبيبٍ بعينه — وأجيب أيضاً عن كيفية الحجز وأسئلة الموقع الشائعة.
+          <br><strong>دليل حجز مواعيد فقط، لا بديل عن استشارة طبية أو الطوارئ.</strong>
         </div>
         <div id="asstBody" class="asst-body mt-16"></div>
         <div class="row gap-8 mt-12">
