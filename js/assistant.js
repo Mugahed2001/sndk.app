@@ -23,6 +23,7 @@ const SndkAssistant = (() => {
   // بعينه (نتيجة بحث وحيدة، أو "مواعيد/أطباء مرفق X" ناجحة). "مواعيد هذا
   // المرفق" في رسالة تالية تحلّه من هنا بدل البحث عن نصّ "هذا المرفق" حرفياً.
   let lastFacility = null; // {id, name} | null
+  let lastDoctor = null; // {id, name} | null
 
   function withTimeout(promise) {
     return Promise.race([
@@ -73,6 +74,10 @@ const SndkAssistant = (() => {
   // وبلا كلمة طبيب ⇒ نعرض كل جدولات ذلك المرفق (لا الأطباء فقط).
   const FALLBACK_SCHEDULE_WORDS = ['موعد', 'مواعيد', 'جدول', 'جداول', 'دوام', 'اوقات', 'اوقات العمل', 'ايام العمل'];
   const FALLBACK_DOCTOR_WORDS = ['طبيب', 'أطباء', 'اطباء', 'دكتور', 'دكاترة'];
+  // "د."/"د" — تُستعمَل للحذف فقط (word-boundary عبر stripSimpleWords)، لا
+  // للكشف عبر includes كبقية FALLBACK_DOCTOR_WORDS — حرفٌ واحد كسلسلة فرعية
+  // يطابق كل نص تقريباً.
+  const FALLBACK_DOCTOR_TITLE_WORDS = ['د', 'د.'];
   const FALLBACK_FACILITY_WORDS = ['مستشفى', 'مستشفيات', 'عيادة', 'عيادات', 'مركز طبي', 'مراكز', 'مرفق', 'مرافق', 'مستوصف'];
   const FALLBACK_REPORT_WORDS = ['تقرير', 'احصائية', 'احصائيات', 'إحصائية', 'إحصائيات', 'ملخص', 'كم عدد', 'كم مرفق', 'كم مستشفى', 'كم طبيب', 'كم مدينة'];
   const FALLBACK_GREETING_WORDS = ['مرحبا', 'اهلا', 'السلام عليكم', 'هاي', 'صباح الخير', 'مساء الخير'];
@@ -283,13 +288,23 @@ const SndkAssistant = (() => {
   // يحدَّد نوع الطلب أولاً بوضوح صريح (لا تخمين مبعثر داخل جسم دالة واحدة
   // ضخمة) قبل أي استعلام — كل نوع له مُعالِج مستقل أدناه.
   async function classifyFallbackRequest(n) {
+    // أعلى أولوية: سؤالٌ إجرائي عن الموقع نفسه لا بحثاً عن بيانات — يُفحص
+    // قبل أي تصنيف آخر كي لا "كيف أحجز؟" (تحوي "حجز") تُخطَف كطلب حجز عام.
+    const faqTopic = detectFaqTopic(n);
+    if (faqTopic) return { type: 'faq', faqTopic };
+
     if (FALLBACK_CAMP_WORDS.some((w) => n.includes(w))) return { type: 'camp' };
     if (FALLBACK_REPORT_WORDS.some((w) => n.includes(normalizeSimple(w)))) return { type: 'report' };
 
-    const mentionsDoctor = FALLBACK_DOCTOR_WORDS.some((w) => n.includes(normalizeSimple(w)));
+    // "د." / "د" لقب مفرد شائع قبل اسم الطبيب مباشرة ("د. عبدالرحمن
+    // السري") — لا يُضاف لـFALLBACK_DOCTOR_WORDS نفسها لأن الفحص هناك
+    // substring؛ حرف "د" وحده سيطابق شبه أي نص عربي. فحصٌ بحدود الكلمة هنا
+    // فقط (تقسيم بمسافات) يتجنّب ذلك.
+    const mentionsDoctorTitle = n.split(' ').some((w) => w === 'د' || w === 'د.');
+    const mentionsDoctor = mentionsDoctorTitle || FALLBACK_DOCTOR_WORDS.some((w) => n.includes(normalizeSimple(w)));
     const mentionsFacilityType = FALLBACK_FACILITY_WORDS.some((w) => n.includes(normalizeSimple(w)));
     if (mentionsDoctor && mentionsFacilityType) {
-      const facilityQuery = stripSimpleWords(n, [...FALLBACK_NOISE_WORDS, ...FALLBACK_DOCTOR_WORDS, ...FALLBACK_FACILITY_WORDS]);
+      const facilityQuery = stripSimpleWords(n, [...FALLBACK_NOISE_WORDS, ...FALLBACK_DOCTOR_WORDS, ...FALLBACK_DOCTOR_TITLE_WORDS, ...FALLBACK_FACILITY_WORDS]);
       if (facilityQuery) return { type: 'facility_doctors', facilityQuery };
     }
 
@@ -299,6 +314,13 @@ const SndkAssistant = (() => {
     if (mentionsFacilityType && mentionsSchedule && !mentionsDoctor) {
       const facilityQuery = stripSimpleWords(n, [...FALLBACK_NOISE_WORDS, ...FALLBACK_SCHEDULE_WORDS, ...FALLBACK_FACILITY_WORDS, ...FALLBACK_BOOKING_WORDS]);
       if (facilityQuery) return { type: 'facility_schedules', facilityQuery };
+    }
+
+    // «مواعيد د. فلان» — طبيب بالاسم بلا ذكر مرفق: مواعيده أينما عمل، لا
+    // "لا نتائج" لأن get-doctors وحدها كانت تُستخدَم قبلاً بلا مواعيد فعلية.
+    if (mentionsDoctor && mentionsSchedule && !mentionsFacilityType) {
+      const doctorQuery = stripSimpleWords(n, [...FALLBACK_NOISE_WORDS, ...FALLBACK_SCHEDULE_WORDS, ...FALLBACK_DOCTOR_WORDS, ...FALLBACK_DOCTOR_TITLE_WORDS, ...FALLBACK_BOOKING_WORDS]);
+      if (doctorQuery) return { type: 'doctor_schedules', doctorQuery };
     }
 
     const specialties = await loadFallbackSpecialties();
@@ -370,6 +392,49 @@ const SndkAssistant = (() => {
         ['أطباء مسجَّلون', esc(String(Number(row.doctors_count) || 0))],
         ['مدن ومناطق مخدومة', esc(String(Number(row.cities_count) || 0))],
       ]);
+  }
+
+  // أسئلة إجرائية ثابتة — لا بيانات ولا بحث، إجابة مكتوبة سلفاً. أول ما
+  // يُتوقَّع من "مساعد يجاوب الناس" وكان غائباً بالكامل: "كيف أحجز؟" كانت
+  // تصل `booking_generic` أو بحثاً فاشلاً، لا جواباً فعلياً على السؤال.
+  // عباراتٌ محدَّدة لا كلمات مفردة عامة ("متى" وحدها مثلاً) — تفادياً لخطف
+  // سؤالٍ عن مرفقٍ بعينه بالخطأ.
+  const FAQ_TOPICS = [
+    {
+      key: 'how_to_book',
+      phrases: ['كيف احجز', 'كيف أحجز', 'طريقة الحجز', 'كيفية الحجز', 'كيف اقدر احجز'],
+      answer: () => `الحجز الإلكتروني: افتح صفحة الطبيب أو المرفق الذي تريده، واضغط زرّ «احجز» — يظهر فقط للمرافق المفعَّلة تجارياً (تُعرَّف بعمود «حجز إلكتروني» في أي جدول هنا). غيرها يحتاج تواصلاً مباشراً عبر الهاتف أو واتساب.`
+        + actionsRow(linkBtn(`${sndkBasePath()}/doctors`, 'تصفّح الأطباء') + linkBtn(`${sndkBasePath()}/facilities`, 'تصفّح المرافق')),
+    },
+    {
+      key: 'booking_cost',
+      phrases: ['الحجز مجاني', 'تكلفة الحجز', 'رسوم الحجز', 'فلوس الحجز', 'سعر الحجز'],
+      answer: () => `رسوم الحجز الإلكتروني تُعرَض في صفحة التأكيد قبل إتمامه مباشرة — تختلف حسب المرفق. المنصّة نفسها لا تفرض رسوماً على تصفّح الأطباء أو المرافق أو الاتصال المباشر بهم.`,
+    },
+    {
+      key: 'about_sndk',
+      phrases: ['ما هو سندك', 'ما هي سندك', 'من انتم', 'عن الموقع', 'عن التطبيق', 'ايش سندك'],
+      answer: () => `سندك الطبي منصّة تسويق وحجز إلكتروني تربطك بالمرافق الصحية (مستشفيات، عيادات، مختبرات) وتعرض جداول الأطباء والتخصصات — لتسهيل التواصل والحجز فقط، بلا تقديم استشارات طبية أو تخزين سجلات صحية.`
+        + actionsRow(linkBtn(`${sndkBasePath()}/about`, 'عن الموقع بالتفصيل')),
+    },
+    {
+      key: 'cancel_booking',
+      phrases: ['الغاء الحجز', 'إلغاء الحجز', 'الغاء الموعد', 'إلغاء الموعد', 'كيف الغي'],
+      answer: () => `إلغاء موعدٍ محجوز إلكترونياً يكون من صفحة «حجوزاتي» بعد تسجيل الدخول. لموعدٍ حُجز مباشرة (هاتف/واتساب) تواصل مع المرفق نفسه لإلغائه.`,
+    },
+    {
+      key: 'contact_support',
+      phrases: ['تواصل معكم', 'الدعم الفني', 'رقم الدعم', 'اتواصل معكم', 'عندي شكوى', 'مشكلة في التطبيق'],
+      answer: () => `للتواصل أو الإبلاغ عن مشكلة تخصّ المنصّة نفسها (لا مرفقاً بعينه)، استخدم صفحة "عن الموقع" أدناه — تحوي وسائل التواصل الرسمية.`
+        + actionsRow(linkBtn(`${sndkBasePath()}/about`, 'عن الموقع ووسائل التواصل')),
+    },
+  ];
+
+  function detectFaqTopic(n) {
+    for (const topic of FAQ_TOPICS) {
+      if (topic.phrases.some((p) => n.includes(normalizeSimple(p)))) return topic;
+    }
+    return null;
   }
 
   function handleGreetingIntent() {
@@ -510,6 +575,94 @@ const SndkAssistant = (() => {
         ? ''
         : '<div class="text-muted mt-8" style="font-size:12px;">الحجز الإلكتروني غير مفعَّل لهذا المرفق — تواصل معه مباشرة عبر صفحته.</div>')
       + actionsRow(linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(facility.id)}`, 'فتح صفحة المرفق'));
+  }
+
+  // نفس بنية `resolveFacilityQuery` بالحرف لكن للأطباء — إشارة صرفة تُحلّ
+  // من `lastDoctor`، وإلا بحث get-doctors مع التقصير التدريجي المعتاد.
+  async function resolveDoctorQuery(doctorQuery) {
+    if (isPureReference(doctorQuery)) {
+      if (lastDoctor) return { doctor: lastDoctor, matchesCount: 1, fromContext: true };
+      return {
+        doctor: null,
+        errorHtml: `طلبك: مواعيد الطبيب «${esc(doctorQuery)}» — لم نتحدّث عن طبيبٍ بعد في هذه المحادثة لأربطه بالإشارة. اذكر اسمه صراحةً.`,
+      };
+    }
+    const words = doctorQuery.split(' ').filter(Boolean);
+    let matches = [];
+    for (let n = words.length; n >= 1; n--) {
+      const term = words.slice(0, n).join(' ');
+      try {
+        const rows = await withTimeout(SndkApi.getData('get-doctors', { query: { q: term, limit: 5 } }));
+        matches = Array.isArray(rows) ? rows : [];
+      } catch (_) { matches = []; }
+      if (matches.length || n === 1) break;
+    }
+    if (matches.length === 0) {
+      return {
+        doctor: null,
+        errorHtml: `طلبك: مواعيد الطبيب «${esc(doctorQuery)}» — لا طبيب مطابق في البحث المبسّط. تصفّح كل الأطباء من ${linkBtn(`${sndkBasePath()}/doctors`, 'هنا')}.`,
+      };
+    }
+    return { doctor: matches[0], matchesCount: matches.length, fromContext: false };
+  }
+
+  // "مواعيد د. عبدالرحمن السري" — بلا ذكر مرفق: مواعيد الطبيب أينما عمل،
+  // لا اقتصاراً على مرفقٍ واحد كما في `facility_schedules`. get-doctors لا
+  // تُرجع مواعيد فعلية (كانت هذه الفجوة أصلاً)، فـget-clinic-schedules
+  // بفلتر doctor_id هي المصدر الحقيقي — الفلتر مدعوم فعلاً هناك.
+  async function handleDoctorSchedulesIntent(doctorQuery) {
+    const resolved = await resolveDoctorQuery(doctorQuery);
+    if (!resolved.doctor) return resolved.errorHtml;
+    const doctor = resolved.doctor;
+    lastDoctor = { id: doctor.id, name: doctor.name };
+
+    let schedules = [];
+    let bookingIdsArr = null;
+    try {
+      const results = await withTimeout(Promise.all([
+        SndkApi.getData('get-clinic-schedules', { query: { doctor_id: doctor.id } }),
+        fetchBookingFacilityIds().catch(() => null),
+      ]));
+      schedules = Array.isArray(results[0]) ? results[0] : [];
+      bookingIdsArr = results[1];
+    } catch (_) { /* استمرّ بلا نتائج */ }
+
+    const bookingIds = Array.isArray(bookingIdsArr) ? new Set(bookingIdsArr) : null;
+    const ambiguityNote = resolved.matchesCount > 1 ? ` (من بين ${resolved.matchesCount} أطباء مطابقين، الأقرب: ${esc(doctor.name)})` : '';
+    const askedAs = resolved.fromContext ? esc(doctor.name) : `«${esc(doctorQuery)}»`;
+    const intro = `طلبك: مواعيد الطبيب ${askedAs}${ambiguityNote} — ${esc(doctor.name)}: كل الجدولات المعلَنة.`;
+
+    if (schedules.length === 0) {
+      return `${intro} لا مواعيد معلَنة لهذا الطبيب حالياً.`
+        + actionsRow(linkBtn(`${sndkBasePath()}/doctor/${encodeURIComponent(doctor.id)}`, 'فتح صفحة الطبيب'));
+    }
+
+    // آخر مرفق ذُكر عند طبيب واحد بمرفق واحد فقط — طبيبٌ في عدّة مرافق لا
+    // "مرفقاً أخيراً" واحداً واضحاً يستحق تحديد "هذا المرفق" عليه لاحقاً.
+    const facilityIds = new Set(schedules.map((s) => s.facility_id).filter(Boolean));
+    if (facilityIds.size === 1 && schedules[0].facilities) {
+      lastFacility = { id: schedules[0].facility_id, name: schedules[0].facilities.name };
+    }
+
+    schedules.sort((a, b) => ((a.facilities && a.facilities.name) || '').localeCompare((b.facilities && b.facilities.name) || '', 'ar'));
+    const rows = schedules.map((s) => {
+      const days = scheduleDayIndices(s);
+      const daysLabel = days.length ? days.map((d) => FALLBACK_DAY_LABELS[d]).join('، ') : '—';
+      const time = s.start_time && s.end_time ? `${esc(s.start_time.slice(0, 5))}–${esc(s.end_time.slice(0, 5))}` : '—';
+      const f = s.facilities;
+      const locationLabel = [f && f.city, f && f.district, f && f.directorate, f && f.nearby_landmark].filter(Boolean).join(' — ') || '—';
+      return [
+        f ? linkBtn(`${sndkBasePath()}/facility/${encodeURIComponent(s.facility_id)}`, f.name) : esc('—'),
+        esc(locationLabel),
+        esc(daysLabel),
+        esc(FALLBACK_PERIOD_LABELS[s.period] || s.period || '—'),
+        time,
+        bookingIds && bookingIds.has(s.facility_id) ? 'متاح' : 'غير متاح',
+      ];
+    });
+    return intro
+      + tableHtml(['المرفق', 'الموقع', 'الأيام', 'الفترة', 'الوقت', 'حجز إلكتروني'], rows)
+      + actionsRow(linkBtn(`${sndkBasePath()}/doctor/${encodeURIComponent(doctor.id)}`, 'فتح صفحة الطبيب'));
   }
 
   // "جدول تخصص الأسنان في عيديد مساءً" — استعلامٌ مركَّب حقيقي عابر
@@ -689,6 +842,7 @@ const SndkAssistant = (() => {
     // نتيجة واحدة بالضبط (طبيب أو مرفق، لا كلاهما معاً) — فقرة مفصّلة كاملة
     // بدل سرد مقتضب، بقدر ما هو متوفّر فعلاً من بيانات.
     if (doctors.length === 1 && facilities.length === 0) {
+      lastDoctor = { id: doctors[0].id, name: doctors[0].name };
       const specialtiesById = Object.fromEntries(specialties.map((s) => [s.id, s]));
       const label = matchedSpecialty ? `طبيب في تخصص «${esc(matchedSpecialty.arabic_name || matchedSpecialty.name)}»` : `بحث عن «${esc(raw)}»`;
       return `طلبك: ${label} — نتيجة واحدة مطابقة: ${describeDoctorParagraph(doctors[0], specialtiesById)}`
@@ -750,6 +904,8 @@ const SndkAssistant = (() => {
       case 'greeting': return handleGreetingIntent();
       case 'facility_doctors': return await handleFacilityDoctorsIntent(intent.facilityQuery);
       case 'facility_schedules': return await handleFacilitySchedulesIntent(intent.facilityQuery);
+      case 'doctor_schedules': return await handleDoctorSchedulesIntent(intent.doctorQuery);
+      case 'faq': return intent.faqTopic.answer();
       case 'schedule_query': return await handleScheduleQueryIntent(intent.matchedSpecialty, intent.period, intent.dayIndex, intent.cityQuery);
       case 'booking_generic': return handleBookingGenericIntent();
       default: return await handleSearchIntent(raw, intent.matchedSpecialty, intent.specialties);
@@ -786,7 +942,7 @@ const SndkAssistant = (() => {
           <div style="font-weight:700;">مساعد سندك الطبي</div>
         </div>
         <div class="text-muted mt-8" style="font-size:12px;">
-          اسألني عن طبيب أو مستشفى أو تخصص أو مخيم طبي، أو اطلب جدول مواعيد بمدينة وفترة ويوم محدَّدين.
+          اسألني عن طبيب أو مستشفى أو تخصص أو مخيم طبي، أو اطلب جدول مواعيد بمدينة وفترة ويوم محدَّدين، أو مواعيد طبيبٍ بعينه — وأجيب أيضاً عن كيفية الحجز وأسئلة الموقع الشائعة.
         </div>
         <div id="asstBody" class="asst-body mt-16"></div>
         <div class="row gap-8 mt-12">
