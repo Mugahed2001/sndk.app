@@ -90,10 +90,20 @@ async function loadFacilities(q) {
   }
 
   if (!Array.isArray(facilities)) facilities = [];
+  const beforeCityFilter = facilities;
   if (cityFilter) facilities = facilities.filter((f) => f.city === cityFilter);
 
   if (facilities.length === 0) {
-    body.innerHTML = `<div class="state-box">${q || cityFilter ? 'لا نتائج مطابقة.' : 'لا مرافق متاحة حالياً.'}</div>`;
+    if (cityFilter && beforeCityFilter.length > 0) {
+      body.innerHTML = `<div class="state-box">لا مرافق في مدينة "${esc(cityFilter)}" لهذا البحث.<br>جرّب <button class="btn btn-sm btn-outline" id="clearCityFilterBtn" style="margin-top:8px;">إزالة فلتر المدينة</button></div>`;
+      document.getElementById('clearCityFilterBtn')?.addEventListener('click', () => {
+        cityFilter = '';
+        document.getElementById('cityFilterSelect').value = '';
+        loadFacilities(q);
+      });
+      return;
+    }
+    body.innerHTML = `<div class="state-box">${q || cityFilter ? 'لا نتائج مطابقة — جرّب كلمة أقصر أو تحقّق من الإملاء.' : 'لا مرافق متاحة حالياً.'}</div>`;
     return;
   }
 

@@ -147,16 +147,41 @@ async function loadDoctors(q, specialtyId) {
   if (!Array.isArray(doctors)) doctors = [];
   lastLoadedDoctors = doctors;
   rebuildCityOptions(doctors);
-  renderDoctorsList(doctors);
+  renderDoctorsList(doctors, { q: effectiveQ, hadFilter: !!(q || specialtyId) });
 }
 
-function renderDoctorsList(doctors) {
+// رسالة "لا نتائج" وحيدة عامة تكرَّرت في كل سياق — التدقيق رصدها كفجوة
+// تجربة مستخدم فعلية (زائر لا يعرف هل يُعدِّل الفلتر أم يبحث بكلمة مختلفة).
+// هنا تُخصَّص حسب السبب الفعلي: فلتر مدينة فارغ لمدينةٍ لا يوجد بها أطباء
+// (حلٌّ واضح: أزل فلتر المدينة) مقابل بحثٍ عامّ بلا نتائج (اقتراح تخصص قريب
+// من كلمات الاستعلام إن وُجد، وإلا نصّ عام يقترح تبسيط الكلمة).
+function renderDoctorsList(doctors, ctx = {}) {
   const body = document.getElementById('doctorsBody');
   const filtered = doctorCityFilter
     ? doctors.filter((d) => (doctorPrimaryFacility(d) || {}).city === doctorCityFilter)
     : doctors;
 
   if (filtered.length === 0) {
+    if (doctorCityFilter && doctors.length > 0) {
+      body.innerHTML = `<div class="state-box">لا أطباء في مدينة "${esc(doctorCityFilter)}" لهذا البحث.<br>جرّب <button class="btn btn-sm btn-outline" id="clearCityFilterBtn" style="margin-top:8px;">إزالة فلتر المدينة</button></div>`;
+      document.getElementById('clearCityFilterBtn')?.addEventListener('click', () => {
+        doctorCityFilter = '';
+        document.getElementById('cityFilterSelect').value = '';
+        renderDoctorsList(lastLoadedDoctors, ctx);
+      });
+      return;
+    }
+    if (ctx.q) {
+      const near = specialtiesList.find((s) => {
+        const name = normalizeSimple(s.arabic_name || s.name || '');
+        return name.split(' ').some((w) => w.length >= 3 && normalizeSimple(ctx.q).includes(w.slice(0, 3)));
+      });
+      body.innerHTML = `<div class="state-box">
+        لا نتائج لـ"${esc(ctx.q)}".<br>
+        جرّب كلمة أقصر أو تحقّق من الإملاء${near ? `، أو تصفّح تخصص "${esc(near.arabic_name || near.name)}"` : ''}.
+      </div>`;
+      return;
+    }
     body.innerHTML = '<div class="state-box">لا نتائج مطابقة.</div>';
     return;
   }
