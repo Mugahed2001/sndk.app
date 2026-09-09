@@ -165,10 +165,17 @@ const SndkAssistant = (() => {
       ...FALLBACK_AGENDA_WORDS,
       ...FALLBACK_SCHEDULE_WORDS,
       ...FALLBACK_CITY_NOISE_WORDS,
+      ...FALLBACK_DOCTOR_WORDS,
+      ...FALLBACK_FACILITY_WORDS,
       ...Object.keys(FALLBACK_PERIOD_MAP),
       ...FALLBACK_DAY_LABELS,
     ];
-    if (matchedSpecialty) words.push(matchedSpecialty.arabic_name || matchedSpecialty.name || '');
+    if (matchedSpecialty) {
+      // بصيغته المجرَّدة (بلا "ال") — بها طابَق أصلاً، فبها يُستخرَج بنجاح:
+      // stripSimpleWords تبني صيغة "ال+الكلمة" تلقائياً فتغطي الحالتين معاً.
+      const name = normalizeSimple(matchedSpecialty.arabic_name || matchedSpecialty.name || '');
+      words.push(name.startsWith('ال') ? name.slice(2) : name);
+    }
     return stripSimpleWords(n, words);
   }
 
@@ -295,9 +302,14 @@ const SndkAssistant = (() => {
     }
 
     const specialties = await loadFallbackSpecialties();
+    // "دكتور اسنان" لا يطابق "الأسنان" المخزَّنة — n.includes(name) يطلب
+    // "ال" حرفياً في رسالة المستخدم. اسم التخصص بلا "ال" (حين توجد) كافٍ:
+    // "اسنان" ضمن "دكتور اسنان" مباشرةً، وضمن "دكتور الاسنان" أيضاً لأن
+    // الثانية تحوي الأولى كسلسلة فرعية — تغطية الاتجاهين بفحصٍ واحد.
     const matchedSpecialty = specialties.find((s) => {
       const name = normalizeSimple(s.arabic_name || s.name || '');
-      return name.length >= 3 && n.includes(name);
+      const bare = name.startsWith('ال') ? name.slice(2) : name;
+      return bare.length >= 3 && n.includes(bare);
     });
 
     // جدول عابر للمرافق — "جدول تخصص الأسنان في عيديد مساءً": فترة أو يوم
@@ -311,7 +323,16 @@ const SndkAssistant = (() => {
       return { type: 'schedule_query', matchedSpecialty, period, dayIndex, cityQuery };
     }
 
-    if (matchedSpecialty) return { type: 'search', specialties, matchedSpecialty };
+    // تخصص + مدينة بلا فترة/يوم — "دكتور اسنان في تريم": نفس استعلام الجدول
+    // المركَّب، فيراعي المدينة فعلاً بدل بحثٍ عام يخلط أطباء كل المدن معاً.
+    // بلا مدينة حقيقية متبقّية (كل الكلمات استُهلكت) يبقى بحثاً عاماً بالتخصص.
+    if (matchedSpecialty) {
+      const cityQuery = extractCityQuery(n, matchedSpecialty);
+      if (cityQuery) {
+        return { type: 'schedule_query', matchedSpecialty, period: null, dayIndex: null, cityQuery };
+      }
+      return { type: 'search', specialties, matchedSpecialty };
+    }
 
     if (FALLBACK_BOOKING_WORDS.some((w) => n.includes(w))) return { type: 'booking_generic', specialties };
     if (FALLBACK_GREETING_WORDS.some((w) => n.includes(normalizeSimple(w)))) return { type: 'greeting' };
