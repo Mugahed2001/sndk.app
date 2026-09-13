@@ -1,5 +1,5 @@
 // صفحة إعادة تعيين كلمة المرور — موضوعة داخل هوية الموقع نفسه، مع تواصل
-// آمن مع Supabase Auth وتوجيه بسيط نحو صفحة تفرّغ تجربة موحّدة.
+// آمن مع Supabase Auth، ثم تفرّغ تجربة استعادة صحيحة داخل الموقع الرسمي.
 const SndkRest = (() => {
   function normalizeEmail(email) {
     return String(email || '').trim().toLowerCase();
@@ -11,13 +11,27 @@ const SndkRest = (() => {
     error.innerHTML = `<div class="banner banner-error mt-8">${esc(message)}</div>`;
   }
 
-  function recoveryQuery() {
+  function parseQuery() {
     const params = new URLSearchParams(window.location.search);
     return {
       type: params.get('type'),
       token: params.get('token'),
       code: params.get('code'),
-      redirectTo: params.get('redirect_to'),
+      redirectTo: params.get('redirect_to') || params.get('redirect') || 'https://snadk.codeysaa.com/rest',
+    };
+  }
+
+  function parseHash() {
+    const raw = (window.location.hash || '').replace(/^#/, '');
+    const params = new URLSearchParams(raw);
+    return {
+      access_token: params.get('access_token'),
+      refresh_token: params.get('refresh_token'),
+      expires_in: params.get('expires_in'),
+      token_type: params.get('token_type'),
+      type: params.get('type'),
+      token: params.get('token'),
+      redirectTo: params.get('redirect_to') || 'https://snadk.codeysaa.com/rest',
     };
   }
 
@@ -48,25 +62,10 @@ const SndkRest = (() => {
     return true;
   }
 
-  async function updatePassword(password) {
+  async function updatePassword(password, accessToken) {
     const base = window.SNDK_CONFIG.SUPABASE_URL.replace(/\/+$/, '');
-
-    let accessToken = null;
-    const tokenKey = 'sb-zoveiphxwzckgzavvrlb.supabase.co-auth-token';
-    try {
-      const saved = JSON.parse(localStorage.getItem(tokenKey) || 'null');
-      if (saved && typeof saved === 'object') {
-        accessToken = saved.access_token || (saved[0] && saved[0].access_token) || null;
-      }
-    } catch (_) {
-      accessToken = null;
-    }
-
-    if (!accessToken) {
-      throw new Error('انتهت صلاحية رابط إعادة التعيين. أعد طلب رابط جديداً.');
-    }
-
     const url = `${base}/auth/v1/user`;
+
     const response = await fetch(url, {
       method: 'PUT',
       headers: {
@@ -88,15 +87,13 @@ const SndkRest = (() => {
     return true;
   }
 
-  function renderRecoveryForm() {
+  function renderRecoveryForm(accessToken) {
     const panel = document.getElementById('resetPanel');
     const success = document.getElementById('resetSuccess');
     const error = document.getElementById('resetError');
-    const form = document.getElementById('resetForm');
 
-    if (!panel || !success || !error || !form) return;
+    if (!panel || !success || !error) return;
 
-    const old = panel.innerHTML;
     panel.innerHTML = `
       <div class="title-md" style="margin-bottom:12px;text-align:center;">إدخال كلمة مرور جديدة</div>
       <p class="text-muted" style="text-align:center;line-height:1.8;margin:0 0 16px;">
@@ -134,7 +131,7 @@ const SndkRest = (() => {
       newError.innerHTML = '';
 
       try {
-        await updatePassword(password);
+        await updatePassword(password, accessToken);
         panel.innerHTML = '';
         success.hidden = false;
         success.innerHTML = `<div class="banner banner-info">تم تحديث كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول بكلمة المرور الجديدة.</div>`;
@@ -157,9 +154,19 @@ const SndkRest = (() => {
     const panel = document.getElementById('resetPanel');
     const success = document.getElementById('resetSuccess');
 
-    const query = recoveryQuery();
-    if (query.type === 'recovery' && (query.code || query.token)) {
-      renderRecoveryForm();
+    const query = parseQuery();
+    const hash = parseHash();
+
+    const type = hash.type || query.type;
+    const accessToken = hash.access_token;
+
+    if (type === 'recovery' && accessToken) {
+      renderRecoveryForm(accessToken);
+      return;
+    }
+
+    if (type === 'recovery' && (query.token || query.code)) {
+      emailError('رابط التحقق تم استلامه، ضع الرابط في الصفحة الرسمية ثم أعد المحاولة.');
       return;
     }
 
