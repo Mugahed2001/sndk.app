@@ -86,7 +86,32 @@ const SndkRest = (() => {
     return true;
   }
 
-  function renderRecoveryForm(token, type, redirectTo) {
+  async function updatePasswordByAccessToken(password, accessToken) {
+    const base = window.SNDK_CONFIG.SUPABASE_URL.replace(/\/+$/, '');
+    const url = `${base}/auth/v1/user`;
+
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        apikey: window.SNDK_CONFIG.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ password }),
+    });
+
+    if (!response.ok) {
+      let payload = {};
+      try { payload = await response.json(); } catch (_) {}
+      const message = payload.message || payload.error_description || 'تعذّر تحديث كلمة المرور.';
+      throw new Error(message);
+    }
+
+    return true;
+  }
+
+  function renderRecoveryForm(accessToken, token, type, redirectTo) {
     const panel = document.getElementById('resetPanel');
     const success = document.getElementById('resetSuccess');
     const error = document.getElementById('resetError');
@@ -130,7 +155,11 @@ const SndkRest = (() => {
       newError.innerHTML = '';
 
       try {
-        await updatePasswordByToken(password, token, type, redirectTo);
+        if (accessToken) {
+          await updatePasswordByAccessToken(password, accessToken);
+        } else {
+          await updatePasswordByToken(password, token, type, redirectTo);
+        }
         panel.innerHTML = '';
         success.hidden = false;
         success.innerHTML = `<div class="banner banner-info">تم تحديث كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول بكلمة المرور الجديدة.</div>`;
@@ -155,12 +184,18 @@ const SndkRest = (() => {
 
     const query = parseQuery();
     const hash = parseHash();
+    const accessToken = hash.access_token || null;
     const token = query.token || query.code || hash.token || null;
     const type = query.type || hash.type || 'recovery';
     const redirectTo = query.redirectTo || hash.redirectTo || 'https://snadk.codeysaa.com/rest';
 
+    if (accessToken) {
+      renderRecoveryForm(accessToken, null, type, redirectTo);
+      return;
+    }
+
     if (type === 'recovery' && token) {
-      renderRecoveryForm(token, type, redirectTo);
+      renderRecoveryForm(null, token, type, redirectTo);
       return;
     }
 
