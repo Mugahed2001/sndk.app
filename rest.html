@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https://zoveiphxwzckgzavvrlb.supabase.co data:; connect-src 'self' https://zoveiphxwzckgzavvrlb.supabase.co">
+<title>إعادة تعيين كلمة المرور — سندك الطبي</title>
+<meta name="description" content="إعادة تعيين كلمة المرور على سندك الطبي — أمان وسهولة في خطوة واحدة.">
+<link rel="icon" type="image/png" href="/img/logo.png">
+<link rel="preconnect" href="https://zoveiphxwzckgzavvrlb.supabase.co">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css?v=23">
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-inner">
+    <a href="./" class="brand"><img src="/img/logo.png" alt="" class="brand-logo"> سندك الطبي</a>
+    <div class="topbar-actions" id="topbarActions"></div>
+  </div>
+</div>
+
+<main class="container" style="max-width:560px;padding-top:28px;">
+  <section class="card card-pad">
+    <div class="text-center" style="margin-bottom:16px;">
+      <img src="/img/logo.png" alt="سندك الطبي" width="58" height="58" style="border-radius:16px;box-shadow:0 8px 24px rgba(11,130,155,0.20);">
+    </div>
+
+    <div class="section-title" style="margin-bottom:4px;text-align:center;">إعادة تعيين كلمة المرور</div>
+    <div class="title-md" style="text-align:center;margin-bottom:8px;">مرحباً بك مرة أخرى</div>
+
+    <p class="text-muted" style="text-align:center;line-height:1.8;margin:0 0 16px;">
+      أدخل بريدك المسجّل في حساب سندك الطبي، وسنرسل لك رابطاً آمناً لإعادة كلمة المرور.
+    </p>
+
+    <div id="resetPanel">
+      <form id="resetForm">
+        <label class="field-label" for="resetEmail">البريد الإلكتروني</label>
+        <input class="field" id="resetEmail" type="email" placeholder="name@example.com" autocomplete="email" required>
+
+        <div id="resetError" class="mt-8"></div>
+
+        <button class="btn btn-filled btn-block mt-12" id="resetSubmitBtn" type="submit">
+          إرسال رابط إعادة التعيين
+        </button>
+      </form>
+
+      <div class="mt-16" style="text-align:center;">
+        <a href="/" class="text-muted" style="font-weight:700;color:var(--primary);">العودة إلى الصفحة الرئيسية</a>
+      </div>
+    </div>
+
+    <div id="resetSuccess" class="mt-16" hidden>
+      <div class="banner banner-success">
+        تم إرسال رابط إعادة التعيين إلى بريدك الإلكتروني. اضغط على الرابط الموجود في الرسالة لتحديث كلمة المرور.
+      </div>
+      <a class="btn btn-outline btn-block mt-12" href="/">عودة إلى الموقع</a>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">© سندك الطبي · <a href="/terms" style="color:inherit;text-decoration:underline;">شروط الاستخدام</a> · <a href="/privacy" style="color:inherit;text-decoration:underline;">الخصوصية</a></footer>
+
+<script src="js/routing.js?v=23"></script>
+<script src="js/common.js?v=27"></script>
+<script src="js/config.js?v=23"></script>
+<script src="js/api.js?v=23"></script>
+<script src="js/auth.js?v=23"></script>
+<script src="js/auth-ui.js?v=23"></script>
+<script src="js/nav.js?v=23"></script>
+<script src="js/rest.js?v=23"></script>
+</body>
+</html>

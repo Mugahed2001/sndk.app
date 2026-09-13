@@ -92,5 +92,11 @@
     return;
   }
 
+  const restMatch = rest.match(/^\/rest\/?$/);
+  if (restMatch) {
+    window.location.replace(`${base}/rest.html${search}`);
+    return;
+  }
+
   window.location.replace(`${base}/`);
 })();
