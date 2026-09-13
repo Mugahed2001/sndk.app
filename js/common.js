@@ -97,7 +97,7 @@ function lastUpdatedLabel(dateStr) {
 function reportIssueLink(kind, name, id) {
   const subject = encodeURIComponent(`بلاغ معلومة غير صحيحة — ${name}`);
   const body = encodeURIComponent(`نوع السجلّ: ${kind}\nالاسم: ${name}\nالمعرّف: ${id}\nالرابط: ${window.location.href}\n\nوصف الخطأ:\n`);
-  return `mailto:privacy@snadk.codeysaa.com?subject=${subject}&body=${body}`;
+  return `mailto:info@codeysaa.com?subject=${subject}&body=${body}`;
 }
 
 /// "مفتوح الآن" — يوفّر على المريض مقارنة ذهنية بين تاريخ اليوم وجدول
