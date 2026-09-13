@@ -14,6 +14,27 @@ if (window.top !== window.self) {
   window.top.location = window.self.location;
 }
 
+// عند عودة Supabase بهاش recovery من root الموقع، أعد توجيه المستخدم إلى
+// صفحة الاستعادة الرسمية الموحدة /rest/ مع الاحتفاظ بالهاش نفسه؛ هذا يمنع
+// العبث في رابط reset النهائي بعد auth/v1/verify ويضمن أن فورم كلمة المرور
+// تتبيّنه rest.js بدل أن يبقى في الصفحة الرئيسية.
+(function () {
+  const hash = (window.location.hash || '').trim();
+  const pathname = (window.location.pathname || '/');
+  const isRecoveryHash = hash.indexOf('access_token=') >= 0 && hash.indexOf('type=recovery') >= 0;
+  const base = typeof sndkBasePath === 'function' ? sndkBasePath() : '';
+  const restPath = `${base}/rest/`;
+  const alreadyOnRest = pathname === '/rest' || pathname === '/rest/' || pathname.indexOf('/rest/') === 0;
+
+  if (isRecoveryHash && !alreadyOnRest) {
+    try {
+      window.location.replace(`${restPath}${hash}`);
+    } catch (_) {
+      window.location.href = `${restPath}${hash}`;
+    }
+  }
+})();
+
 /// إفلاتٌ آمن من HTML — كل نصّ مصدره الخادم (اسم مرفق، ملاحظة مريض، عنوان
 /// مخيم…) يمرّ من هنا قبل أن يدخل `innerHTML`. البديل عن نصٍّ حرفي داخل
 /// القالب هو استثناءٌ في الحقن (XSS) في اللحظة التي يكتب فيها أحدٌ في حقلٍ
