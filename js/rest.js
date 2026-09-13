@@ -62,17 +62,16 @@ const SndkRest = (() => {
     return true;
   }
 
-  async function updatePassword(password, accessToken) {
+  async function updatePassword(password, token, type, redirectTo) {
     const base = window.SNDK_CONFIG.SUPABASE_URL.replace(/\/+$/, '');
-    const url = `${base}/auth/v1/user`;
+    const url = `${base}/auth/v1/verify?token=${encodeURIComponent(token)}&type=${encodeURIComponent(type)}&redirect_to=${encodeURIComponent(redirectTo)}`;
 
     const response = await fetch(url, {
-      method: 'PUT',
+      method: 'POST',
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
         apikey: window.SNDK_CONFIG.SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({ password }),
     });
@@ -87,7 +86,7 @@ const SndkRest = (() => {
     return true;
   }
 
-  function renderRecoveryForm(accessToken) {
+  function renderRecoveryForm(token, type, redirectTo) {
     const panel = document.getElementById('resetPanel');
     const success = document.getElementById('resetSuccess');
     const error = document.getElementById('resetError');
@@ -131,7 +130,7 @@ const SndkRest = (() => {
       newError.innerHTML = '';
 
       try {
-        await updatePassword(password, accessToken);
+        await updatePassword(password, token, type, redirectTo);
         panel.innerHTML = '';
         success.hidden = false;
         success.innerHTML = `<div class="banner banner-info">تم تحديث كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول بكلمة المرور الجديدة.</div>`;
@@ -156,17 +155,12 @@ const SndkRest = (() => {
 
     const query = parseQuery();
     const hash = parseHash();
+    const token = query.token || query.code || hash.token || null;
+    const type = query.type || hash.type || 'recovery';
+    const redirectTo = query.redirectTo || hash.redirectTo || 'https://snadk.codeysaa.com/rest';
 
-    const type = hash.type || query.type;
-    const accessToken = hash.access_token;
-
-    if (type === 'recovery' && accessToken) {
-      renderRecoveryForm(accessToken);
-      return;
-    }
-
-    if (type === 'recovery' && (query.token || query.code)) {
-      emailError('رابط التحقق تم استلامه، ضع الرابط في الصفحة الرسمية ثم أعد المحاولة.');
+    if (type === 'recovery' && token) {
+      renderRecoveryForm(token, type, redirectTo);
       return;
     }
 
